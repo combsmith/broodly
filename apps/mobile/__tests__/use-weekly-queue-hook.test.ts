@@ -152,6 +152,34 @@ describe('groupByApiary', () => {
   });
 });
 
+describe('error handling helpers', () => {
+  it('handleGraphQLError throws with operation context', () => {
+    const { handleGraphQLError } = require('../src/features/planning/hooks/use-weekly-queue');
+    expect(() => handleGraphQLError(new Error('Network failed'), 'test op')).toThrow('test op failed: Network failed');
+  });
+
+  it('handleGraphQLError converts non-Error objects to strings', () => {
+    const { handleGraphQLError } = require('../src/features/planning/hooks/use-weekly-queue');
+    expect(() => handleGraphQLError({ code: 'ERR' }, 'test op')).toThrow('test op failed: [object Object]');
+  });
+
+  it('ensureData returns data when provided', () => {
+    const { ensureData } = require('../src/features/planning/hooks/use-weekly-queue');
+    const data = { test: 'value' };
+    expect(ensureData(data, 'test')).toBe(data);
+  });
+
+  it('ensureData throws when data is null', () => {
+    const { ensureData } = require('../src/features/planning/hooks/use-weekly-queue');
+    expect(() => ensureData(null, 'test op')).toThrow('No data returned from test op');
+  });
+
+  it('ensureData throws when data is undefined', () => {
+    const { ensureData } = require('../src/features/planning/hooks/use-weekly-queue');
+    expect(() => ensureData(undefined, 'test op')).toThrow('No data returned from test op');
+  });
+});
+
 describe('useWeeklyQueue hook', () => {
   const mockQuery = jest.fn();
   const mockClient = { query: mockQuery };

@@ -72,6 +72,18 @@ const QUEUE_KEYS = {
   weekly: ['weekly-queue'] as const,
 };
 
+export function handleGraphQLError(error: unknown, operationName: string): never {
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  throw new Error(`${operationName} failed: ${errorMsg}`);
+}
+
+export function ensureData<T>(data: T | null | undefined, operationName: string): T {
+  if (!data) {
+    throw new Error(`No data returned from ${operationName}`);
+  }
+  return data;
+}
+
 export function useWeeklyQueue() {
   const client = useClient();
 
@@ -80,11 +92,10 @@ export function useWeeklyQueue() {
     queryFn: async () => {
       const result = await client.query(WEEKLY_QUEUE_QUERY, {}).toPromise();
       if (result.error) {
-        const errorMsg = result.error instanceof Error ? result.error.message : String(result.error);
-        throw new Error(errorMsg);
+        handleGraphQLError(result.error, 'weekly queue query');
       }
-      if (!result.data) throw new Error('No data returned from weekly queue');
-      return groupByApiary(result.data.tasks as RawTask[]);
+      const data = ensureData(result.data, 'weekly queue');
+      return groupByApiary(data.tasks as RawTask[]);
     },
   });
 }
@@ -97,11 +108,10 @@ export function useCompleteTask() {
     mutationFn: async (id: string) => {
       const result = await client.mutation(COMPLETE_TASK_MUTATION, { id }).toPromise();
       if (result.error) {
-        const errorMsg = result.error instanceof Error ? result.error.message : String(result.error);
-        throw new Error(errorMsg);
+        handleGraphQLError(result.error, 'complete task mutation');
       }
-      if (!result.data) throw new Error('No data returned from completeTask');
-      return result.data.completeTask;
+      const data = ensureData(result.data, 'complete task');
+      return data.completeTask;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUEUE_KEYS.weekly });
@@ -119,11 +129,10 @@ export function useDeferTask() {
         .mutation(DEFER_TASK_MUTATION, { id, input: { reason } })
         .toPromise();
       if (result.error) {
-        const errorMsg = result.error instanceof Error ? result.error.message : String(result.error);
-        throw new Error(errorMsg);
+        handleGraphQLError(result.error, 'defer task mutation');
       }
-      if (!result.data) throw new Error('No data returned from deferTask');
-      return result.data.deferTask;
+      const data = ensureData(result.data, 'defer task');
+      return data.deferTask;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUEUE_KEYS.weekly });
