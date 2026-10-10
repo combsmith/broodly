@@ -594,4 +594,118 @@ describe('useDeferTask hook', () => {
 
     await expect(capturedMutationFn({ id: 'task-1' })).rejects.toThrow();
   });
+
+  it('defer mutation passes undefined reason when not provided', async () => {
+    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
+    const { useMutation, useQueryClient } = require('@tanstack/react-query');
+    useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
+
+    let capturedMutationFn: any;
+    useMutation.mockImplementation((config) => {
+      capturedMutationFn = config.mutationFn;
+      return { mutate: jest.fn() };
+    });
+
+    useDeferTask();
+
+    mockClient.mutation.mockReturnValueOnce({
+      toPromise: () => Promise.resolve({
+        data: { deferTask: { id: 'task-1', status: 'DEFERRED', dueDate: '2026-07-22' } },
+        error: null,
+      }),
+    });
+
+    await capturedMutationFn({ id: 'task-1', reason: undefined });
+    expect(mockClient.mutation).toHaveBeenCalledWith(
+      expect.anything(),
+      { id: 'task-1', input: { reason: undefined } }
+    );
+  });
+});
+
+describe('groupByApiary edge cases', () => {
+  it('maintains order when tasks are interleaved across apiaries', () => {
+    const { groupByApiary } = require('../src/features/planning/hooks/use-weekly-queue');
+
+    const tasks = [
+      {
+        id: 't1',
+        title: 'Task 1',
+        hive: { id: 'h1', name: 'H1', apiary: { id: 'a1', name: 'A1' } },
+        priority: 'HIGH',
+        dueDate: null,
+        status: 'PENDING',
+        isOverdue: false,
+        catchUpGuidance: null,
+      },
+      {
+        id: 't2',
+        title: 'Task 2',
+        hive: { id: 'h2', name: 'H2', apiary: { id: 'a2', name: 'A2' } },
+        priority: 'HIGH',
+        dueDate: null,
+        status: 'PENDING',
+        isOverdue: false,
+        catchUpGuidance: null,
+      },
+      {
+        id: 't3',
+        title: 'Task 3',
+        hive: { id: 'h3', name: 'H3', apiary: { id: 'a1', name: 'A1' } },
+        priority: 'HIGH',
+        dueDate: null,
+        status: 'PENDING',
+        isOverdue: false,
+        catchUpGuidance: null,
+      },
+    ];
+
+    const result = groupByApiary(tasks);
+    expect(result).toHaveLength(2);
+    expect(result[0].apiaryId).toBe('a1');
+    expect(result[0].tasks).toHaveLength(2);
+    expect(result[1].apiaryId).toBe('a2');
+    expect(result[1].tasks).toHaveLength(1);
+  });
+
+  it('handles tasks with null values appropriately', () => {
+    const { groupByApiary } = require('../src/features/planning/hooks/use-weekly-queue');
+
+    const tasks = [
+      {
+        id: 'task-1',
+        title: 'Task with nulls',
+        hive: { id: 'h1', name: 'H1', apiary: { id: 'a1', name: 'A1' } },
+        priority: 'LOW',
+        dueDate: null,
+        status: 'PENDING',
+        isOverdue: false,
+        catchUpGuidance: null,
+      },
+    ];
+
+    const result = groupByApiary(tasks);
+    expect(result[0].tasks[0].dueDate).toBeNull();
+    expect(result[0].tasks[0].catchUpGuidance).toBeNull();
+  });
+
+  it('processes large number of tasks efficiently', () => {
+    const { groupByApiary } = require('../src/features/planning/hooks/use-weekly-queue');
+
+    const tasks = Array.from({ length: 100 }, (_, i) => ({
+      id: `task-${i}`,
+      title: `Task ${i}`,
+      hive: { id: `h${i % 10}`, name: `Hive ${i % 10}`, apiary: { id: `a${i % 5}`, name: `Apiary ${i % 5}` } },
+      priority: 'MEDIUM',
+      dueDate: null,
+      status: 'PENDING',
+      isOverdue: false,
+      catchUpGuidance: null,
+    }));
+
+    const result = groupByApiary(tasks);
+    expect(result).toHaveLength(5); // 5 unique apiaries
+    const totalTasks = result.reduce((sum, q) => sum + q.tasks.length, 0);
+    expect(totalTasks).toBe(100);
+  });
 });
