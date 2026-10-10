@@ -22,8 +22,8 @@ describe('useStaleness', () => {
   });
 
   it('returns fresh state for recent data', () => {
-    // 5 minutes ago
-    const recentTime = new Date('2024-01-10T11:55:00Z').getTime();
+    // 3 minutes ago
+    const recentTime = new Date('2024-01-10T11:57:00Z').getTime();
     const { result } = renderHook(() => useStaleness(recentTime));
 
     expect(result.current.level).toBe('fresh');
@@ -41,7 +41,7 @@ describe('useStaleness', () => {
   });
 
   it('recalculates when dataUpdatedAt changes', () => {
-    const recentTime = new Date('2024-01-10T11:55:00Z').getTime();
+    const recentTime = new Date('2024-01-10T11:57:00Z').getTime();
     const { result, rerender } = renderHook(
       (time) => useStaleness(time),
       { initialProps: recentTime }

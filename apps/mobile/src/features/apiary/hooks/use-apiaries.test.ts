@@ -1,6 +1,7 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import React from 'react';
+import { renderHook as rtlRenderHook, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useClient } from 'urql';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   useApiaries,
   useApiary,
@@ -11,7 +12,6 @@ import {
 import type { Apiary, CreateApiaryInput, UpdateApiaryInput } from '@broodly/graphql-types';
 
 jest.mock('urql');
-jest.mock('@tanstack/react-query');
 
 const mockApiaries: Apiary[] = [
   {
@@ -34,6 +34,13 @@ const mockApiaries: Apiary[] = [
 
 const mockApiary: Apiary = mockApiaries[0];
 
+let queryClient: QueryClient;
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+const renderHook = <T,>(callback: () => T) => rtlRenderHook(callback, { wrapper });
+
 describe('useApiaries', () => {
   let mockClient: any;
   let mockQueryClient: any;
@@ -43,12 +50,14 @@ describe('useApiaries', () => {
       query: jest.fn(),
       mutation: jest.fn(),
     };
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
     mockQueryClient = {
-      invalidateQueries: jest.fn(),
+      invalidateQueries: jest.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(),
     };
 
     (useClient as jest.Mock).mockReturnValue(mockClient);
-    (useQueryClient as jest.Mock).mockReturnValue(mockQueryClient);
   });
 
   afterEach(() => {
@@ -135,7 +144,7 @@ describe('useApiaries', () => {
 
       const { result } = renderHook(() => useApiary(''));
 
-      expect(result.current.isIdle).toBe(true);
+      expect(result.current.fetchStatus).toBe('idle');
     });
 
     it('handles error fetching single apiary', async () => {

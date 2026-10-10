@@ -1,4 +1,6 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import React from 'react';
+import { renderHook as rtlRenderHook, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useClient } from 'urql';
 import { useGraphQLQuery } from './use-graphql-query';
 import { gql } from 'urql';
@@ -21,10 +23,18 @@ interface TestData {
   };
 }
 
+let queryClient: QueryClient;
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+const renderHook = <T,>(callback: () => T) => rtlRenderHook(callback, { wrapper });
+
 describe('useGraphQLQuery', () => {
   let mockClient: any;
 
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mockClient = {
       query: jest.fn(),
     };
@@ -105,7 +115,7 @@ describe('useGraphQLQuery', () => {
       })
     );
 
-    expect(result.current.isIdle).toBe(true);
+    expect(result.current.fetchStatus).toBe('idle');
     expect(mockClient.query).not.toHaveBeenCalled();
   });
 
@@ -155,13 +165,12 @@ describe('useGraphQLQuery', () => {
         }),
     });
 
-    const onSuccess = jest.fn();
     const { result } = renderHook(() =>
       useGraphQLQuery<TestData>({
         queryKey: ['test-options'],
         document: TEST_QUERY,
         variables: { id: '1' },
-        onSuccess,
+        select: (data) => ({ test: { ...data.test, name: 'Selected' } }),
       })
     );
 
@@ -169,6 +178,6 @@ describe('useGraphQLQuery', () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(onSuccess).toHaveBeenCalledWith(mockData);
+    expect(result.current.data).toEqual({ test: { id: '1', name: 'Selected' } });
   });
 });

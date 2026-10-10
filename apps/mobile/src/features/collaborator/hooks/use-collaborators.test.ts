@@ -1,6 +1,7 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import React from 'react';
+import { renderHook as rtlRenderHook, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useClient } from 'urql';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   useCollaborators,
   useInviteCollaborator,
@@ -9,7 +10,6 @@ import {
 } from './use-collaborators';
 
 jest.mock('urql');
-jest.mock('@tanstack/react-query');
 
 interface Collaborator {
   id: string;
@@ -61,6 +61,13 @@ const mockAuditLog: AuditEntry[] = [
   },
 ];
 
+let queryClient: QueryClient;
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+const renderHook = <T,>(callback: () => T) => rtlRenderHook(callback, { wrapper });
+
 describe('useCollaborators', () => {
   let mockClient: any;
   let mockQueryClient: any;
@@ -70,12 +77,14 @@ describe('useCollaborators', () => {
       query: jest.fn(),
       mutation: jest.fn(),
     };
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
     mockQueryClient = {
-      invalidateQueries: jest.fn(),
+      invalidateQueries: jest.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(),
     };
 
     (useClient as jest.Mock).mockReturnValue(mockClient);
-    (useQueryClient as jest.Mock).mockReturnValue(mockQueryClient);
   });
 
   afterEach(() => {

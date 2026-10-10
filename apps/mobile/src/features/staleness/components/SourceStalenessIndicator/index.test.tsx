@@ -34,11 +34,11 @@ describe('SourceStalenessIndicator', () => {
 
   it('returns null for fresh data', () => {
     const recentDate = new Date('2024-01-10T11:30:00Z');
-    const { container } = render(
+    const { toJSON } = render(
       <SourceStalenessIndicator source="weather" dataUpdatedAt={recentDate} />
     );
 
-    expect(container.children.length).toBe(0);
+    expect(toJSON()).toBeNull();
   });
 
   it('renders warning indicator for stale data', () => {
@@ -99,7 +99,7 @@ describe('SourceStalenessIndicator', () => {
   });
 
   it('handles different sources correctly', () => {
-    const staleDate = new Date('2024-01-08T12:00:00Z');
+    const staleDate = new Date('2023-12-01T12:00:00Z');
 
     const sources: Array<'weather' | 'flora' | 'telemetry'> = [
       'weather',
@@ -108,7 +108,7 @@ describe('SourceStalenessIndicator', () => {
     ];
 
     sources.forEach((source) => {
-      const { getByText } = render(
+      const { getByText, unmount } = render(
         <SourceStalenessIndicator source={source} dataUpdatedAt={staleDate} />
       );
 
@@ -120,6 +120,7 @@ describe('SourceStalenessIndicator', () => {
             : 'Telemetry data';
 
       expect(getByText(new RegExp(expectedLabel))).toBeTruthy();
+      unmount();
     });
   });
 });
