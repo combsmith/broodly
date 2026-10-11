@@ -92,9 +92,12 @@ export function useWeeklyQueue() {
     queryFn: async () => {
       const result = await client.query(WEEKLY_QUEUE_QUERY, {}).toPromise();
       if (result.error) {
-        handleGraphQLError(result.error, 'weekly queue query');
+        handleGraphQLError(result.error, 'weekly queue');
       }
       const data = ensureData(result.data, 'weekly queue');
+      if (!Array.isArray(data.tasks)) {
+        throw new Error('Invalid tasks data returned from weekly queue');
+      }
       return groupByApiary(data.tasks as RawTask[]);
     },
   });
@@ -108,9 +111,12 @@ export function useCompleteTask() {
     mutationFn: async (id: string) => {
       const result = await client.mutation(COMPLETE_TASK_MUTATION, { id }).toPromise();
       if (result.error) {
-        handleGraphQLError(result.error, 'complete task mutation');
+        handleGraphQLError(result.error, 'complete task');
       }
-      const data = ensureData(result.data, 'completeTask');
+      const data = ensureData(result.data, 'complete task');
+      if (!data.completeTask) {
+        throw new Error('No response from complete task mutation');
+      }
       return data.completeTask;
     },
     onSuccess: () => {
@@ -129,9 +135,12 @@ export function useDeferTask() {
         .mutation(DEFER_TASK_MUTATION, { id, input: { reason } })
         .toPromise();
       if (result.error) {
-        handleGraphQLError(result.error, 'defer task mutation');
+        handleGraphQLError(result.error, 'defer task');
       }
-      const data = ensureData(result.data, 'deferTask');
+      const data = ensureData(result.data, 'defer task');
+      if (!data.deferTask) {
+        throw new Error('No response from defer task mutation');
+      }
       return data.deferTask;
     },
     onSuccess: () => {

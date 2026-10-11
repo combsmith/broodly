@@ -313,6 +313,50 @@ describe('useWeeklyQueue hook', () => {
     const result = await capturedQueryFn();
     expect(result).toEqual([]);
   });
+
+  it('query function throws when tasks is not an array', async () => {
+    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
+    const { useQuery } = require('@tanstack/react-query');
+
+    let capturedQueryFn: any;
+    useQuery.mockImplementation((config: any) => {
+      capturedQueryFn = config.queryFn;
+      return { data: null };
+    });
+
+    useWeeklyQueue();
+
+    mockClient.query.mockReturnValueOnce({
+      toPromise: () => Promise.resolve({
+        data: { tasks: null },
+        error: null,
+      }),
+    });
+
+    await expect(capturedQueryFn()).rejects.toThrow('Invalid tasks data returned from weekly queue');
+  });
+
+  it('query function throws when tasks is undefined', async () => {
+    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
+    const { useQuery } = require('@tanstack/react-query');
+
+    let capturedQueryFn: any;
+    useQuery.mockImplementation((config: any) => {
+      capturedQueryFn = config.queryFn;
+      return { data: null };
+    });
+
+    useWeeklyQueue();
+
+    mockClient.query.mockReturnValueOnce({
+      toPromise: () => Promise.resolve({
+        data: { tasks: undefined },
+        error: null,
+      }),
+    });
+
+    await expect(capturedQueryFn()).rejects.toThrow('Invalid tasks data returned from weekly queue');
+  });
 });
 
 describe('useCompleteTask hook', () => {
@@ -426,7 +470,30 @@ describe('useCompleteTask hook', () => {
       }),
     });
 
-    await expect(capturedMutationFn('task-1')).rejects.toThrow('No data returned from completeTask');
+    await expect(capturedMutationFn('task-1')).rejects.toThrow('No data returned from complete task');
+  });
+
+  it('mutation function throws when completeTask is missing from response', async () => {
+    const { useCompleteTask } = require('../src/features/planning/hooks/use-weekly-queue');
+    const { useMutation, useQueryClient } = require('@tanstack/react-query');
+    useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
+
+    let capturedMutationFn: any;
+    useMutation.mockImplementation((config) => {
+      capturedMutationFn = config.mutationFn;
+      return { mutate: jest.fn() };
+    });
+
+    useCompleteTask();
+
+    mockClient.mutation.mockReturnValueOnce({
+      toPromise: () => Promise.resolve({
+        data: {},
+        error: null,
+      }),
+    });
+
+    await expect(capturedMutationFn('task-1')).rejects.toThrow('No response from complete task mutation');
   });
 });
 
@@ -620,6 +687,52 @@ describe('useDeferTask hook', () => {
       expect.anything(),
       { id: 'task-1', input: { reason: undefined } }
     );
+  });
+
+  it('defer mutation throws when deferTask is missing from response', async () => {
+    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
+    const { useMutation, useQueryClient } = require('@tanstack/react-query');
+    useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
+
+    let capturedMutationFn: any;
+    useMutation.mockImplementation((config) => {
+      capturedMutationFn = config.mutationFn;
+      return { mutate: jest.fn() };
+    });
+
+    useDeferTask();
+
+    mockClient.mutation.mockReturnValueOnce({
+      toPromise: () => Promise.resolve({
+        data: {},
+        error: null,
+      }),
+    });
+
+    await expect(capturedMutationFn({ id: 'task-1' })).rejects.toThrow('No response from defer task mutation');
+  });
+
+  it('defer mutation throws when no data returned', async () => {
+    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
+    const { useMutation, useQueryClient } = require('@tanstack/react-query');
+    useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
+
+    let capturedMutationFn: any;
+    useMutation.mockImplementation((config) => {
+      capturedMutationFn = config.mutationFn;
+      return { mutate: jest.fn() };
+    });
+
+    useDeferTask();
+
+    mockClient.mutation.mockReturnValueOnce({
+      toPromise: () => Promise.resolve({
+        data: null,
+        error: null,
+      }),
+    });
+
+    await expect(capturedMutationFn({ id: 'task-1' })).rejects.toThrow('No data returned from defer task');
   });
 });
 
