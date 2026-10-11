@@ -110,7 +110,7 @@ export function useCompleteTask() {
       if (result.error) {
         handleGraphQLError(result.error, 'complete task mutation');
       }
-      const data = ensureData(result.data, 'complete task');
+      const data = ensureData(result.data, 'completeTask');
       return data.completeTask;
     },
     onSuccess: () => {
@@ -131,7 +131,7 @@ export function useDeferTask() {
       if (result.error) {
         handleGraphQLError(result.error, 'defer task mutation');
       }
-      const data = ensureData(result.data, 'defer task');
+      const data = ensureData(result.data, 'deferTask');
       return data.deferTask;
     },
     onSuccess: () => {
