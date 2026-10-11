@@ -639,7 +639,7 @@ describe('useDeferTask hook', () => {
       }),
     });
 
-    await expect(capturedMutationFn({ id: 'task-1' })).rejects.toThrow('No data returned from deferTask');
+    await expect(capturedMutationFn({ id: 'task-1' })).rejects.toThrow('No data returned from defer task');
   });
 
   it('mutation function throws error when client.mutation throws', async () => {
