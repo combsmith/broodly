@@ -1,6 +1,10 @@
 /**
  * @jest-environment jsdom
  */
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import { useAuthStore } from '../src/store/auth-store';
+
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn() }),
@@ -33,13 +37,9 @@ jest.mock('../components/ui/button', () => {
   };
 });
 
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
-
 describe('Homepage', () => {
   beforeEach(() => {
-    const { useAuthStore } = require('../src/store/auth-store');
-    useAuthStore.mockImplementation((selector: (s: { user: { displayName: string } | null }) => unknown) =>
+    (useAuthStore as jest.Mock).mockImplementation((selector: (s: { user: { displayName: string } | null }) => unknown) =>
       selector({ user: { displayName: 'DJ' } }));
   });
 
@@ -93,8 +93,7 @@ describe('Homepage', () => {
   });
 
   it('renders greeting without user name when not authenticated', () => {
-    const { useAuthStore } = require('../src/store/auth-store');
-    useAuthStore.mockImplementation((selector: (s: { user: null }) => unknown) =>
+    (useAuthStore as jest.Mock).mockImplementation((selector: (s: { user: null }) => unknown) =>
       selector({ user: null })
     );
     const HomeScreen = require('../app/(tabs)/index').default;
