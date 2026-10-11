@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useClient } from 'urql';
 import { useWeeklyQueue, useCompleteTask, useDeferTask } from '../src/features/planning/hooks/use-weekly-queue';
 
-jest.mock('urql');
+jest.mock('urql', () => ({ ...jest.requireActual('urql'), useClient: jest.fn() }));
 
 let queryClient: QueryClient;
 

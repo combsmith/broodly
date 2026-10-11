@@ -1,9 +1,32 @@
 import { mmkvStorage } from '../src/store/mmkv-storage.web';
 
+// The jest-expo environment is native and has no Web Storage API; provide an in-memory one.
+class MemoryStorage {
+  private store = new Map<string, string>();
+  getItem(key: string) {
+    return this.store.has(key) ? (this.store.get(key) as string) : null;
+  }
+  setItem(key: string, value: string) {
+    this.store.set(key, String(value));
+  }
+  removeItem(key: string) {
+    this.store.delete(key);
+  }
+  clear() {
+    this.store.clear();
+  }
+}
+Object.defineProperty(globalThis, 'Storage', { value: MemoryStorage, configurable: true });
+Object.defineProperty(globalThis, 'localStorage', { value: new MemoryStorage(), configurable: true });
+
 describe('mmkvStorage (web fallback using localStorage)', () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('getItem', () => {
