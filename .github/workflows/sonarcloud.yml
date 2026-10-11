@@ -11,25 +11,74 @@ jobs:
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      EXPO_PUBLIC_FIREBASE_USE_EMULATOR: "true"
+      EXPO_PUBLIC_FIREBASE_PROJECT_ID: broodly-dev
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate TypeScript coverage
+        # Coverage (lcov + text-summary) is configured in apps/mobile/jest.config.js.
+        # Passing CLI flags here forwards a literal `--` through nested pnpm, making
+        # jest treat the flags as test-path patterns (0 matches → exit 1).
+        run: pnpm run test
+        continue-on-error: false
+
+      - name: Verify coverage file exists
+        run: |
+          if [ -f "apps/mobile/coverage/lcov.info" ]; then
+            echo "✓ Coverage file found"
+            head -5 apps/mobile/coverage/lcov.info
+          else
+            echo "✗ Coverage file NOT found at apps/mobile/coverage/lcov.info"
+            ls -la apps/mobile/coverage/ || echo "Coverage directory does not exist"
+            exit 1
+          fi
+
+      - name: Normalize lcov paths for monorepo
+        run: |
+          # jest runs with rootDir apps/mobile and emits SF: paths relative to it
+          # (e.g. SF:app/..., SF:src/...). SonarCloud scans from the repo root, so
+          # those paths must be prefixed to repo-root-relative form or coverage
+          # fails to map to any source file (reported as 0% coverage on new code).
+          # Only rewrite relative paths; leave any absolute SF: paths untouched.
+          sed -i 's|^SF:\([^/]\)|SF:apps/mobile/\1|' apps/mobile/coverage/lcov.info
+          echo "Normalized SF: paths (sample):"
+          grep -m 3 "^SF:" apps/mobile/coverage/lcov.info
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: apps/api/go.mod
           cache-dependency-path: apps/api/go.sum
 
-      - name: Generate Go coverage for SonarCloud
+      - name: Generate Go coverage
         working-directory: apps/api
-        run: go test -coverprofile=coverage.out ./...
+        run: go test -short -race -coverprofile=coverage.out -timeout=5m ./...
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          java-version: 21
+          distribution: temurin
 
       - name: SonarCloud Scan
         if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

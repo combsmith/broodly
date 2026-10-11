@@ -30,6 +30,19 @@ jest.mock('../src/features/apiary/hooks/use-apiaries', () => ({
   useDeleteApiary: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
 
+// Mock planning hooks (used by plan/index.tsx)
+jest.mock('../src/features/planning/hooks/use-weekly-queue', () => ({
+  useWeeklyQueue: () => ({ data: undefined, isLoading: true, refetch: jest.fn(), isRefetching: false }),
+  useCompleteTask: () => ({ mutate: jest.fn() }),
+  useDeferTask: () => ({ mutate: jest.fn() }),
+}));
+
+// Mock auth store (used by homepage)
+jest.mock('../src/store/auth-store', () => ({
+  useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ user: null, isLoading: false }),
+}));
+
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }));
@@ -75,11 +88,11 @@ jest.mock('@gluestack-ui/core/icon/creator', () => {
 // Screen stubs ----------------------------------------------------------
 
 describe('Screen stubs render correctly', () => {
-  it('Home screen renders title', () => {
+  it('Home screen renders greeting', () => {
     const HomeScreen =
       require('../app/(tabs)/index').default;
     render(<HomeScreen />);
-    expect(screen.getByText('Home')).toBeTruthy();
+    expect(screen.getByText(/welcome back/i)).toBeTruthy();
   });
 
   it('Apiaries list screen renders loading state', () => {
@@ -89,11 +102,11 @@ describe('Screen stubs render correctly', () => {
     expect(screen.getByText(/loading apiaries/i)).toBeTruthy();
   });
 
-  it('Plan screen renders title', () => {
+  it('Plan screen renders loading state', () => {
     const PlanScreen =
       require('../app/(tabs)/plan/index').default;
     render(<PlanScreen />);
-    expect(screen.getByText('Plan')).toBeTruthy();
+    expect(screen.getByText(/loading your plan/i)).toBeTruthy();
   });
 
   it('Settings screen renders title', () => {

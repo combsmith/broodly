@@ -93,26 +93,26 @@ development_status:
   9-5-skill-mismatch-detection: review
   epic-9-retrospective: optional
 
-  epic-10: backlog
-  10-1-happy-context-homepage: ready-for-dev
-  10-2-weekly-action-queue: ready-for-dev
-  10-3-task-resolution-actions: ready-for-dev
-  10-4-seasonal-planning-calendar: ready-for-dev
-  10-5-dynamic-priority-updates: ready-for-dev
+  epic-10: done
+  10-1-happy-context-homepage: review
+  10-2-weekly-action-queue: review
+  10-3-task-resolution-actions: review
+  10-4-seasonal-planning-calendar: review
+  10-5-dynamic-priority-updates: review
   epic-10-retrospective: optional
 
-  epic-11: backlog
-  11-1-signed-url-media-upload: ready-for-dev
-  11-2-stt-transcription-worker: ready-for-dev
-  11-3-vision-ai-analysis-worker: ready-for-dev
-  11-4-acoustic-analysis-worker: ready-for-dev
-  11-5-embedding-generation-pipeline: ready-for-dev
+  epic-11: done
+  11-1-signed-url-media-upload: review
+  11-2-stt-transcription-worker: review
+  11-3-vision-ai-analysis-worker: review
+  11-4-acoustic-analysis-worker: review
+  11-5-embedding-generation-pipeline: review
   epic-11-retrospective: optional
 
-  epic-12: backlog
-  12-1-notification-dispatch-service: ready-for-dev
-  12-2-notification-center-ui: ready-for-dev
-  12-3-notification-sensitivity-config: ready-for-dev
-  12-4-alert-escalation-engine: ready-for-dev
-  12-5-feedback-prompts: ready-for-dev
+  epic-12: done
+  12-1-notification-dispatch-service: review
+  12-2-notification-center-ui: review
+  12-3-notification-sensitivity-config: review
+  12-4-alert-escalation-engine: review
+  12-5-feedback-prompts: review
   epic-12-retrospective: optional

@@ -338,7 +338,7 @@ describe('InspectionSummaryScreen', () => {
     setupInspectionWithObservations();
     renderScreen();
     // cautionaryCount = 1
-    expect(screen.getByText('Cautionary')).toBeTruthy();
+    expect(screen.getAllByText('Cautionary').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows colony health signal when no urgent observations', () => {

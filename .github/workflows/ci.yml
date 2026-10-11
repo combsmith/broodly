@@ -17,9 +17,9 @@ jobs:
   typescript:
     name: TypeScript
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
-      # Firebase Emulator config for tests — no real credentials needed
-      EXPO_PUBLIC_FIREBASE_USE_EMULATOR: 'true'
+      EXPO_PUBLIC_FIREBASE_USE_EMULATOR: "true"
       EXPO_PUBLIC_FIREBASE_PROJECT_ID: broodly-dev
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -34,7 +34,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Format check
-        run: pnpm run format:check
+        run: pnpm -w run format:check
 
       - name: Lint
         run: pnpm run lint
@@ -50,12 +50,172 @@ jobs:
             exit 1
           fi
 
-      - name: Test
+      - name: Test with coverage
+        # Coverage (lcov + text-summary) is configured in apps/mobile/jest.config.js.
+        # Passing CLI flags here forwards a literal `--` through nested pnpm, making
+        # jest treat the flags as test-path patterns (0 matches → exit 1).
         run: pnpm run test
+        continue-on-error: false
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ts-test-results
+          path: |
+            apps/mobile/coverage/
+            test-results/
+          retention-days: 14
+
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
+        with:
+          working-directory: apps/api
+
+      - name: Unit tests
+        run: go test -short -race -coverprofile=coverage.out -timeout=5m ./...
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: ${COVERAGE}%"
+          THRESHOLD=50
+          if [ "$(echo "$COVERAGE < $THRESHOLD" | bc -l)" -eq 1 ]; then
+            echo "::error::Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+            exit 1
+          fi
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: go-coverage
+          path: apps/api/coverage.out
+          retention-days: 14
+
+      - name: Migration guard
+        shell: bash
+        run: |
+          migrations_dir="migrations"
+          if [ ! -d "$migrations_dir" ]; then
+            echo "No migrations directory found — skipping migration guard."
+            exit 0
+          fi
+
+          files=$(ls "$migrations_dir"/*.sql 2>/dev/null || true)
+          if [ -z "$files" ]; then
+            echo "No migration files found — skipping migration guard."
+            exit 0
+          fi
+
+          errors=0
+
+          declare -A up_files
+          declare -A down_files
+          sequences=()
+
+          for f in $files; do
+            basename=$(basename "$f")
+            if [[ ! "$basename" =~ ^([0-9]+)_(.*)\.(up|down)\.sql$ ]]; then
+              echo "ERROR: Invalid migration filename: $basename"
+              echo "  Expected format: NNNN_description.up.sql or NNNN_description.down.sql"
+              errors=$((errors + 1))
+              continue
+            fi
+
+            seq="${BASH_REMATCH[1]}"
+            direction="${BASH_REMATCH[3]}"
+
+            if [ "$direction" = "up" ]; then
+              up_files["$seq"]="$basename"
+            else
+              down_files["$seq"]="$basename"
+            fi
+
+            if [[ ! " ${sequences[*]} " =~ " $seq " ]]; then
+              sequences+=("$seq")
+            fi
+          done
+
+          IFS=$'\n' sorted=($(sort <<<"${sequences[*]}")); unset IFS
+
+          for seq in "${sorted[@]}"; do
+            if [ -z "${up_files[$seq]}" ]; then
+              echo "ERROR: Migration $seq is missing an .up.sql file"
+              errors=$((errors + 1))
+            fi
+            if [ -z "${down_files[$seq]}" ]; then
+              echo "ERROR: Migration $seq is missing a .down.sql file"
+              errors=$((errors + 1))
+            fi
+          done
+
+          prev=""
+          for seq in "${sorted[@]}"; do
+            if [ -n "$prev" ]; then
+              expected=$((10#$prev + 1))
+              expected_padded=$(printf "%0${#seq}d" "$expected")
+              if [ "$seq" != "$expected_padded" ]; then
+                echo "ERROR: Migration sequence gap — expected $expected_padded after $prev, found $seq"
+                errors=$((errors + 1))
+              fi
+            fi
+            prev="$seq"
+          done
+
+          if [ "$errors" -gt 0 ]; then
+            echo ""
+            echo "Migration guard failed with $errors error(s)."
+            exit 1
+          fi
+
+          echo "Migration guard passed — ${#sorted[@]} migration(s) validated."
+
+      - name: Docker build
+        working-directory: .
+        run: docker build -f apps/api/Dockerfile -t broodly-api:ci apps/api/
+
+  go-integration:
+    name: Go Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: go
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Integration tests (testcontainers)
+        run: go test -race -count=1 -timeout=10m -run TestIntegration ./internal/repository/
 
   mobile-build:
     name: Mobile Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [typescript]
     steps:
@@ -105,149 +265,3 @@ jobs:
         env:
           GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
         run: echo "${GOOGLE_SERVICE_INFO_PLIST}" | base64 -d > GoogleService-Info.plist
-
-  go:
-    name: Go
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
-        with:
-          go-version-file: apps/api/go.mod
-          cache-dependency-path: apps/api/go.sum
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Lint
-        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
-        with:
-          working-directory: apps/api
-
-      - name: Unit tests
-        run: go test -short -race -coverprofile=coverage.out ./...
-
-      - name: Check coverage threshold
-        run: |
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Total coverage: ${COVERAGE}%"
-          THRESHOLD=50
-          if [ "$(echo "$COVERAGE < $THRESHOLD" | bc -l)" -eq 1 ]; then
-            echo "::error::Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
-            exit 1
-          fi
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: go-coverage
-          path: apps/api/coverage.out
-
-      - name: Migration guard
-        shell: bash
-        run: |
-          migrations_dir="migrations"
-          if [ ! -d "$migrations_dir" ]; then
-            echo "No migrations directory found — skipping migration guard."
-            exit 0
-          fi
-
-          files=$(ls "$migrations_dir"/*.sql 2>/dev/null || true)
-          if [ -z "$files" ]; then
-            echo "No migration files found — skipping migration guard."
-            exit 0
-          fi
-
-          errors=0
-
-          # Collect sequence numbers and validate naming
-          declare -A up_files
-          declare -A down_files
-          sequences=()
-
-          for f in $files; do
-            basename=$(basename "$f")
-            if [[ ! "$basename" =~ ^([0-9]+)_(.*)\.(up|down)\.sql$ ]]; then
-              echo "ERROR: Invalid migration filename: $basename"
-              echo "  Expected format: NNNN_description.up.sql or NNNN_description.down.sql"
-              errors=$((errors + 1))
-              continue
-            fi
-
-            seq="${BASH_REMATCH[1]}"
-            direction="${BASH_REMATCH[3]}"
-
-            if [ "$direction" = "up" ]; then
-              up_files["$seq"]="$basename"
-            else
-              down_files["$seq"]="$basename"
-            fi
-
-            if [[ ! " ${sequences[*]} " =~ " $seq " ]]; then
-              sequences+=("$seq")
-            fi
-          done
-
-          # Sort sequences
-          IFS=$'\n' sorted=($(sort <<<"${sequences[*]}")); unset IFS
-
-          # Check each sequence has both up and down
-          for seq in "${sorted[@]}"; do
-            if [ -z "${up_files[$seq]}" ]; then
-              echo "ERROR: Migration $seq is missing an .up.sql file"
-              errors=$((errors + 1))
-            fi
-            if [ -z "${down_files[$seq]}" ]; then
-              echo "ERROR: Migration $seq is missing a .down.sql file"
-              errors=$((errors + 1))
-            fi
-          done
-
-          # Check sequences are sequential (no gaps)
-          prev=""
-          for seq in "${sorted[@]}"; do
-            if [ -n "$prev" ]; then
-              expected=$((10#$prev + 1))
-              expected_padded=$(printf "%0${#seq}d" "$expected")
-              if [ "$seq" != "$expected_padded" ]; then
-                echo "ERROR: Migration sequence gap — expected $expected_padded after $prev, found $seq"
-                errors=$((errors + 1))
-              fi
-            fi
-            prev="$seq"
-          done
-
-          if [ "$errors" -gt 0 ]; then
-            echo ""
-            echo "Migration guard failed with $errors error(s)."
-            exit 1
-          fi
-
-          echo "Migration guard passed — ${#sorted[@]} migration(s) validated."
-
-      - name: Docker build
-        working-directory: .
-        run: docker build -f apps/api/Dockerfile -t broodly-api:ci apps/api/
-
-  go-integration:
-    name: Go Integration Tests
-    runs-on: ubuntu-latest
-    needs: go
-    defaults:
-      run:
-        working-directory: apps/api
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
-        with:
-          go-version-file: apps/api/go.mod
-          cache-dependency-path: apps/api/go.sum
-
-      - name: Integration tests (testcontainers)
-        run: go test -race -count=1 -run TestIntegration ./internal/repository/
-        timeout-minutes: 10
