@@ -1,4 +1,11 @@
-import { groupByApiary } from '../src/features/planning/hooks/use-weekly-queue';
+import {
+  groupByApiary,
+  handleGraphQLError,
+  ensureData,
+  useWeeklyQueue,
+  useCompleteTask,
+  useDeferTask,
+} from '../src/features/planning/hooks/use-weekly-queue';
 import type { ApiaryQueue } from '../src/features/planning/hooks/use-weekly-queue';
 
 jest.mock('urql', () => ({
@@ -154,28 +161,23 @@ describe('groupByApiary', () => {
 
 describe('error handling helpers', () => {
   it('handleGraphQLError throws with operation context', () => {
-    const { handleGraphQLError } = require('../src/features/planning/hooks/use-weekly-queue');
     expect(() => handleGraphQLError(new Error('Network failed'), 'test op')).toThrow('test op failed: Network failed');
   });
 
   it('handleGraphQLError converts non-Error objects to strings', () => {
-    const { handleGraphQLError } = require('../src/features/planning/hooks/use-weekly-queue');
     expect(() => handleGraphQLError({ code: 'ERR' }, 'test op')).toThrow('test op failed: [object Object]');
   });
 
   it('ensureData returns data when provided', () => {
-    const { ensureData } = require('../src/features/planning/hooks/use-weekly-queue');
     const data = { test: 'value' };
     expect(ensureData(data, 'test')).toBe(data);
   });
 
   it('ensureData throws when data is null', () => {
-    const { ensureData } = require('../src/features/planning/hooks/use-weekly-queue');
     expect(() => ensureData(null, 'test op')).toThrow('No data returned from test op');
   });
 
   it('ensureData throws when data is undefined', () => {
-    const { ensureData } = require('../src/features/planning/hooks/use-weekly-queue');
     expect(() => ensureData(undefined, 'test op')).toThrow('No data returned from test op');
   });
 });
@@ -191,12 +193,10 @@ describe('useWeeklyQueue hook', () => {
   });
 
   it('exports a function that can be called', () => {
-    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
     expect(typeof useWeeklyQueue).toBe('function');
   });
 
   it('returns a query with correct query key', () => {
-    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useQuery } = require('@tanstack/react-query');
     const mockQueryResult = { data: null };
     useQuery.mockReturnValue(mockQueryResult);
@@ -209,7 +209,6 @@ describe('useWeeklyQueue hook', () => {
   });
 
   it('query function executes and transforms data via client.query', async () => {
-    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useQuery } = require('@tanstack/react-query');
 
     let capturedQueryFn: any;
@@ -248,7 +247,6 @@ describe('useWeeklyQueue hook', () => {
   });
 
   it('query function throws error when client.query fails', async () => {
-    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useQuery } = require('@tanstack/react-query');
 
     let capturedQueryFn: any;
@@ -270,7 +268,6 @@ describe('useWeeklyQueue hook', () => {
   });
 
   it('query function throws error when no data returned', async () => {
-    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useQuery } = require('@tanstack/react-query');
 
     let capturedQueryFn: any;
@@ -292,7 +289,6 @@ describe('useWeeklyQueue hook', () => {
   });
 
   it('query function properly groups empty tasks', async () => {
-    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useQuery } = require('@tanstack/react-query');
 
     let capturedQueryFn: any;
@@ -315,7 +311,6 @@ describe('useWeeklyQueue hook', () => {
   });
 
   it('query function throws when tasks is not an array', async () => {
-    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useQuery } = require('@tanstack/react-query');
 
     let capturedQueryFn: any;
@@ -337,7 +332,6 @@ describe('useWeeklyQueue hook', () => {
   });
 
   it('query function throws when tasks is undefined', async () => {
-    const { useWeeklyQueue } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useQuery } = require('@tanstack/react-query');
 
     let capturedQueryFn: any;
@@ -370,12 +364,10 @@ describe('useCompleteTask hook', () => {
   });
 
   it('exports a function that can be called', () => {
-    const { useCompleteTask } = require('../src/features/planning/hooks/use-weekly-queue');
     expect(typeof useCompleteTask).toBe('function');
   });
 
   it('returns a mutation', () => {
-    const { useCompleteTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation } = require('@tanstack/react-query');
     const mockMutationResult = { mutate: jest.fn() };
     useMutation.mockReturnValue(mockMutationResult);
@@ -385,7 +377,6 @@ describe('useCompleteTask hook', () => {
   });
 
   it('invalidates weekly-queue query on success', () => {
-    const { useCompleteTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     const mockInvalidate = jest.fn();
     const mockQueryClient = { invalidateQueries: mockInvalidate };
@@ -401,7 +392,6 @@ describe('useCompleteTask hook', () => {
   });
 
   it('mutation function executes client.mutation with task id', async () => {
-    const { useCompleteTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     const mockQueryClient = { invalidateQueries: jest.fn() };
     useQueryClient.mockReturnValue(mockQueryClient);
@@ -428,7 +418,6 @@ describe('useCompleteTask hook', () => {
   });
 
   it('mutation function throws error when client.mutation fails', async () => {
-    const { useCompleteTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -451,7 +440,6 @@ describe('useCompleteTask hook', () => {
   });
 
   it('mutation function throws error when no data returned', async () => {
-    const { useCompleteTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -474,7 +462,6 @@ describe('useCompleteTask hook', () => {
   });
 
   it('mutation function throws when completeTask is missing from response', async () => {
-    const { useCompleteTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -508,12 +495,10 @@ describe('useDeferTask hook', () => {
   });
 
   it('exports a function that can be called', () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     expect(typeof useDeferTask).toBe('function');
   });
 
   it('returns a mutation', () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation } = require('@tanstack/react-query');
     const mockMutationResult = { mutate: jest.fn() };
     useMutation.mockReturnValue(mockMutationResult);
@@ -523,7 +508,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('invalidates weekly-queue query on success', () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     const mockInvalidate = jest.fn();
     const mockQueryClient = { invalidateQueries: mockInvalidate };
@@ -539,7 +523,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('mutation function executes client.mutation with task id and reason', async () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     const mockQueryClient = { invalidateQueries: jest.fn() };
     useQueryClient.mockReturnValue(mockQueryClient);
@@ -569,7 +552,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('mutation function handles defer without reason', async () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -597,7 +579,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('mutation function throws error when client.mutation fails', async () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -620,7 +601,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('mutation function throws error when no data returned', async () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -643,7 +623,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('mutation function throws error when client.mutation throws', async () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -663,7 +642,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('defer mutation passes undefined reason when not provided', async () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -690,7 +668,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('defer mutation throws when deferTask is missing from response', async () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -713,7 +690,6 @@ describe('useDeferTask hook', () => {
   });
 
   it('defer mutation throws when no data returned', async () => {
-    const { useDeferTask } = require('../src/features/planning/hooks/use-weekly-queue');
     const { useMutation, useQueryClient } = require('@tanstack/react-query');
     useQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
 
@@ -738,8 +714,6 @@ describe('useDeferTask hook', () => {
 
 describe('groupByApiary edge cases', () => {
   it('maintains order when tasks are interleaved across apiaries', () => {
-    const { groupByApiary } = require('../src/features/planning/hooks/use-weekly-queue');
-
     const tasks = [
       {
         id: 't1',
@@ -782,8 +756,6 @@ describe('groupByApiary edge cases', () => {
   });
 
   it('handles tasks with null values appropriately', () => {
-    const { groupByApiary } = require('../src/features/planning/hooks/use-weekly-queue');
-
     const tasks = [
       {
         id: 'task-1',
@@ -803,8 +775,6 @@ describe('groupByApiary edge cases', () => {
   });
 
   it('processes large number of tasks efficiently', () => {
-    const { groupByApiary } = require('../src/features/planning/hooks/use-weekly-queue');
-
     const tasks = Array.from({ length: 100 }, (_, i) => ({
       id: `task-${i}`,
       title: `Task ${i}`,
