@@ -35,23 +35,6 @@
 # Requires: GH_PAT_WORKFLOWS org secret (already present in petry-projects org).
 name: Persona — Mention Router
 
-on:
-  # issue_comment covers BOTH issues and PR conversation comments.
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-  # Discussions cannot run an agent inline (#571) — but this router only parses
-  # and dispatches, and the agent itself runs on the resulting
-  # repository_dispatch, which is exactly the bridge the manifest declares.
-  discussion_comment:
-    types: [created]
-# NOTE: reviewer assignment (pull_request/review_requested) is NOT subscribed
-# here yet, even though §4 says "Reviewer-assignment counts here too". The
-# router has no path for it, and a trigger that fires into a router which
-# ignores it is a dead trigger that only burns runs. Tracked as finding 10 in
-# petry-projects/.github#755; the trigger lands with the routing, not before.
-
 permissions: {}
 
 jobs:
@@ -64,3 +47,36 @@ jobs:
       pull-requests: read
     uses: petry-projects/.github/.github/workflows/persona-mention-reusable.yml@persona-mention/v1-stable  # NOSONAR(githubactions:S7637) first-party channel ref
     secrets: inherit  # NOSONAR(githubactions:S7635) org secrets are scoped to first-party reusables
+
+on:
+  # issue_comment covers BOTH issues and PR conversation comments.
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  # Discussions cannot run an agent inline (#571) — but this router only parses
+  # and dispatches, and the agent itself runs on the resulting
+  # repository_dispatch, which is exactly the bridge the manifest declares.
+  discussion_comment:
+    types: [created]
+  # The router also serves the pull_request EVENT surface (#1165): it derives
+  # which personas fire from their manifests' declared `pull_request` surfaces
+  # and dispatches each PR-advisory, binding the same stop-marker / opt-out /
+  # write-gate / trust-floor brakes as the mention path. This path activates
+  # once the reusable at the pinned channel below advances to include it —
+  # rollout is central (bump the channel, then sweep), never a stub edit.
+  #
+  # Subscribe only the actions a persona can declare on its `pull_request`
+  # surface today: opened, ready_for_review, reopened. `synchronize` is NOT
+  # subscribed — no persona declares it (qa-lead excludes it deliberately) and
+  # the router would discard every synchronize event once the declared-events
+  # gate is in, so subscribing it only burns a runner in every repo on every
+  # push. It would be added here only if a persona declares it. (Reviewer
+  # assignment, review_requested, is still correctly omitted — see below.)
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+# NOTE: reviewer assignment (pull_request/review_requested) is still NOT
+# subscribed here, even though §4 says "Reviewer-assignment counts here too".
+# The router has no path for it — and a trigger that fires into a router which
+# ignores it is a dead trigger that only burns runs. Tracked as finding 10 in
+# petry-projects/.github#755; that trigger lands with its routing, not before.
