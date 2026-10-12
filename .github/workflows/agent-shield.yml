@@ -19,15 +19,16 @@
 # To adopt: copy this file to .github/workflows/agent-shield.yml in your repo.
 name: AgentShield
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
 permissions:
   contents: read
 
 jobs:
   agent-shield:
     uses: petry-projects/.github/.github/workflows/agent-shield-reusable.yml@agent-shield/v2-stable  # NOSONAR(githubactions:S7637) first-party channel ref
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  merge_group:
