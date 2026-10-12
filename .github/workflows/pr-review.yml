@@ -1,20 +1,29 @@
-name: PR Review Agent
+# ─────────────────────────────────────────────────────────────────────────────
+# SOURCE OF TRUTH: petry-projects/.github/standards/workflows/pr-review.yml
+# Standard:        petry-projects/.github/standards/ci-standards.md
+# Reusable:        petry-projects/.github-private/.github/workflows/pr-review.yml
+#                  (the pr-review ENGINE — grandfathered name, not *-reusable.yml)
+#
+# AGENTS — READ BEFORE EDITING:
+#   • This file is a THIN CALLER STUB. All review logic lives in the engine
+#     above, including concurrency (per PR + head SHA, never cancelling an
+#     in-flight review), the check_suite-without-a-PR skip, and reading
+#     `client_payload.pr_url` from repository_dispatch.
+#   • You MUST NOT change: the `@pr-review/v1-stable` channel in the `uses:`
+#     line or the matching `agent_ref` — both are re-pinned in lockstep to this
+#     repo's canary-ring tier by the standards sweep. Nor the workflow `name:`,
+#     the job id `review` (check names depend on both), the trigger event types,
+#     the Dependabot skip guard, or the job-level `permissions:` block. Do not
+#     add a stub-level `concurrency:` block.
+#   • The standards sweep only REPLACES an existing caller with this file; it
+#     never adds it to a repo that has none, and never touches
+#     petry-projects/.github-private (whose pr-review.yml is the engine).
+#   • If you need different behaviour, open a PR against the engine in
+#     petry-projects/.github-private. It reaches every repo when the channel
+#     tag is promoted.
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Thin caller for the org PR Review agent (petry-projects/.github-private),
-# pinned to the known-good `pr-review/stable` channel. Adopted from the validated
-# `.github-private/pr-review-trigger.yml` template (#536 consumer fan-out).
-#
-# This repo was missed by the #542 reusable-wrapper retirement and was left
-# calling the deleted `pr-review-reusable.yml@main` (→ 100% startup_failure).
-# Migrated to the canonical consumer stub here.
-#
-# - Version selection is the moving `pr-review/stable` tag — this file never
-#   changes on promotion; a release is rolled out by moving the tag centrally.
-# - `agent_ref: pr-review/stable` pins the agent's own scripts to the same
-#   channel (#506), so the review logic AND scripts run the known-good version.
-# - `secrets: inherit` forwards the org secrets, including
-#   `DON_PETRY_BOT_GH_PAT_CLASSIC` (classic PAT — required for approvals, since
-#   fine-grained PATs cannot `addPullRequestReview`).
+name: PR Review Agent
 
 on:
   check_suite:
@@ -42,39 +51,19 @@ on:
   repository_dispatch:
     types: [pr-review-mention]
 
-permissions:
-  contents: read
-  pull-requests: write
-  checks: read
-
-# Collapse redundant overlapping runs for the same PR. The high-frequency
-# triggers (synchronize + the resulting check_suite completions) fire several
-# times for one PR head; without this they spawn concurrent duplicate reviews
-# (the source of the cancelled runs). Group per PR when one is identifiable;
-# fall back to a unique run id for batch/dispatch/no-PR runs so those are never
-# cancelled against each other.
-concurrency:
-  group: >-
-    pr-review-${{
-      github.event.pull_request.number
-      || github.event.check_suite.pull_requests[0].number
-      || inputs.pr_url
-      || github.event.client_payload.pr_url
-      || github.run_id
-    }}
-  cancel-in-progress: true
+permissions: {}
 
 jobs:
   review:
-    # Skip check_suite completions with no associated PR (e.g. pushes to main):
-    # there is nothing to review, so the run would be pure waste.
-    if: >-
-      github.event_name != 'check_suite'
-      || github.event.check_suite.pull_requests[0] != null
-    uses: petry-projects/.github-private/.github/workflows/pr-review.yml@pr-review/stable  # NOSONAR(githubactions:S7637) first-party channel ref
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: read
+    uses: petry-projects/.github-private/.github/workflows/pr-review.yml@pr-review/v1-stable  # NOSONAR(githubactions:S7637) first-party channel ref
     with:
-      agent_ref: pr-review/stable
-      pr_url: ${{ inputs.pr_url || github.event.client_payload.pr_url || '' }}
+      agent_ref: pr-review/v1-stable
+      pr_url: ${{ inputs.pr_url || '' }}
       dry_run: ${{ inputs.dry_run || '' }}
       force_review: ${{ inputs.force_review || '' }}
-    secrets: inherit
+    secrets: inherit  # NOSONAR(githubactions:S7635) first-party trusted reusable
