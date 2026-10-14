@@ -4,7 +4,7 @@
 # Why this exists: Fleet Monitor issue #533 flagged .github/workflows/sonarcloud.yml
 # with a high failure rate. The failing run's SonarCloud scan failed deterministically
 # on every retry attempt with:
-#   ERROR Invalid value of sonar.tests for petry-projects_broodly
+#   ERROR Invalid value of sonar.tests for combsmith_broodly
 #   ERROR Wildcards ** and * are not supported in "sonar.sources" and "sonar.tests"
 #         properties.
 # SonarCloud forbids '*' / '**' wildcards in sonar.sources and sonar.tests (they are a
@@ -151,7 +151,7 @@ trap '[[ -n "${_fixture_dir:-}" ]] && rm -rf "$_fixture_dir"' EXIT
 
 _bad_tests="${_fixture_dir}/bad-tests.properties"
 cat > "$_bad_tests" <<'EOF'
-sonar.projectKey=petry-projects_broodly
+sonar.projectKey=combsmith_broodly
 sonar.sources=.
 sonar.tests=apps/**/__tests__
 EOF
@@ -162,7 +162,7 @@ EOF
 
 _bad_sources="${_fixture_dir}/bad-sources.properties"
 cat > "$_bad_sources" <<'EOF'
-sonar.projectKey=petry-projects_broodly
+sonar.projectKey=combsmith_broodly
 sonar.sources=apps/*
 EOF
 
@@ -176,7 +176,7 @@ EOF
 # forms a naive single-line '=' match would let slip past the guard.
 _bad_colon="${_fixture_dir}/bad-colon.properties"
 cat > "$_bad_colon" <<'EOF'
-sonar.projectKey=petry-projects_broodly
+sonar.projectKey=combsmith_broodly
 sonar.tests:apps/**/__tests__
 EOF
 
@@ -186,7 +186,7 @@ EOF
 
 _bad_ws="${_fixture_dir}/bad-whitespace.properties"
 cat > "$_bad_ws" <<'EOF'
-sonar.projectKey=petry-projects_broodly
+sonar.projectKey=combsmith_broodly
 sonar.sources apps/*
 EOF
 
@@ -196,7 +196,7 @@ EOF
 
 _bad_cont="${_fixture_dir}/bad-continuation.properties"
 cat > "$_bad_cont" <<'EOF'
-sonar.projectKey=petry-projects_broodly
+sonar.projectKey=combsmith_broodly
 sonar.tests=\
   apps/**/__tests__
 EOF
@@ -215,7 +215,7 @@ bs="$(awk 'BEGIN { printf "%c", 92 }')"
 
 _bad_enc_value="${_fixture_dir}/bad-encoded-value.properties"
 {
-  echo "sonar.projectKey=petry-projects_broodly"
+  echo "sonar.projectKey=combsmith_broodly"
   echo "sonar.tests=apps/${bs}u002a"
 } > "$_bad_enc_value"
 
@@ -225,7 +225,7 @@ _bad_enc_value="${_fixture_dir}/bad-encoded-value.properties"
 
 _bad_enc_key="${_fixture_dir}/bad-encoded-key.properties"
 {
-  echo "sonar.projectKey=petry-projects_broodly"
+  echo "sonar.projectKey=combsmith_broodly"
   echo "sonar${bs}u002esources=apps/${bs}u002a"
 } > "$_bad_enc_key"
 
@@ -235,7 +235,7 @@ _bad_enc_key="${_fixture_dir}/bad-encoded-key.properties"
 
 _bad_malformed="${_fixture_dir}/bad-malformed-escape.properties"
 cat > "$_bad_malformed" <<'EOF'
-sonar.projectKey=petry-projects_broodly
+sonar.projectKey=combsmith_broodly
 sonar.tests=apps/\u00zz
 EOF
 
@@ -248,7 +248,7 @@ EOF
 # resolves to a wildcard-free directory list is valid and must pass.
 _ok_encoded="${_fixture_dir}/ok-encoded.properties"
 {
-  echo "sonar.projectKey=petry-projects_broodly"
+  echo "sonar.projectKey=combsmith_broodly"
   echo "sonar${bs}u002esources=apps/api,apps/mobile"
 } > "$_ok_encoded"
 
@@ -261,7 +261,7 @@ validate_sonar_properties "$_ok_encoded" >/dev/null 2>&1 \
 # them, or it would reject the repo's own valid config.
 _ok_exclusions="${_fixture_dir}/ok-exclusions.properties"
 cat > "$_ok_exclusions" <<'EOF'
-sonar.projectKey=petry-projects_broodly
+sonar.projectKey=combsmith_broodly
 sonar.sources=.
 sonar.exclusions=_bmad/**,.github/**
 EOF
