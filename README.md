@@ -1,6 +1,6 @@
 # Broodly
 
-[![Contributing](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/petry-projects/.github/blob/main/CONTRIBUTING.md)
+[![Contributing](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/combsmith/.github/blob/main/CONTRIBUTING.md)
 
 Field-first beekeeping decision-support app. Mobile-first on iOS, Android, and web via a single Expo + React Native codebase with a Go GraphQL API backend on GCP.
 
@@ -71,4 +71,4 @@ For commercial inquiries, email [support@combsmith.com](mailto:support@combsmith
 
 ### Contributing
 
-By contributing to this project, you agree to the org-wide [Contributing Guide](https://github.com/petry-projects/.github/blob/main/CONTRIBUTING.md) and the project's [Contributor License Agreement](CLA.md).
+By contributing to this project, you agree to the org-wide [Contributing Guide](https://github.com/combsmith/.github/blob/main/CONTRIBUTING.md) and the project's [Contributor License Agreement](CLA.md).

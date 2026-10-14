@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# apply-rulesets.sh — Apply standard repository rulesets to petry-projects/broodly
+# apply-rulesets.sh — Apply standard repository rulesets to combsmith/broodly
 #
 # Applies the rulesets defined in:
-#   https://github.com/petry-projects/.github/blob/main/standards/github-settings.md#repository-rulesets
+#   https://github.com/combsmith/.github/blob/main/standards/github-settings.md#repository-rulesets
 #
 # Rulesets managed:
 #   pr-quality    — pull request review requirements and merge policy
@@ -12,7 +12,7 @@
 # claude-code-action's GitHub App refuses to mint a token for any PR that
 # touches workflow files, which would deadlock every workflow-modifying PR.
 # The check still runs on normal PRs for review feedback but is not a merge gate.
-# See: https://github.com/petry-projects/.github/blob/main/standards/ci-standards.md#centralization-tiers
+# See: https://github.com/combsmith/.github/blob/main/standards/ci-standards.md#centralization-tiers
 #
 # Usage:
 #   GH_TOKEN=<admin-token> ./scripts/apply-rulesets.sh [--dry-run] [--force]
@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-ORG="petry-projects"
+ORG="combsmith"
 REPO="broodly"
 DRY_RUN=false
 FORCE=false
@@ -77,7 +77,7 @@ export GH_TOKEN
 
 # Safety guard: verify the current git remote matches ORG/REPO.
 # Prevents accidentally targeting the wrong repository when running from a fork
-# or a different checkout that has administration access to petry-projects/broodly.
+# or a different checkout that has administration access to combsmith/broodly.
 if [[ "$FORCE" = false ]]; then
   actual_repo=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || true)
   if [[ -z "$actual_repo" ]]; then
@@ -149,8 +149,8 @@ PAYLOAD
 # ---------------------------------------------------------------------------
 # code-quality ruleset
 #
-# Required check contexts for petry-projects/broodly (as detected by the
-# org-level apply-rulesets.sh from petry-projects/.github):
+# Required check contexts for combsmith/broodly (as detected by the
+# org-level apply-rulesets.sh from combsmith/.github):
 #
 #   SonarCloud                            sonarcloud.yml present
 #   CodeQL                                GitHub-managed default setup configured

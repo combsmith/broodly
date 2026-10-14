@@ -82,7 +82,7 @@ _bad_dir="${_tmp}/comments-only"
 mkdir -p "$_bad_dir"
 cat > "${_bad_dir}/auto-rebase.yml" << 'YML'
 # ─────────────────────────────────────────────────────────────────────────────
-# SOURCE OF TRUTH: petry-projects/.github/standards/workflows/auto-rebase.yml
+# SOURCE OF TRUTH: combsmith/.github/standards/workflows/auto-rebase.yml
 # This file is a THIN CALLER STUB.
 # (body accidentally truncated — no `on:` / `jobs:` remain)
 # ─────────────────────────────────────────────────────────────────────────────

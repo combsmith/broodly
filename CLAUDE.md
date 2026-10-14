@@ -1,4 +1,4 @@
-@https://github.com/petry-projects/.github/blob/main/AGENTS.md
+@https://github.com/combsmith/.github/blob/main/AGENTS.md
 @AGENTS.md
 
 # Broodly — Claude Code Project Context
@@ -16,7 +16,7 @@ For comprehensive project guidelines (design system, components, Figma integrati
 
 ### Organization Standards (Required)
 
-All code in this repository MUST comply with the [petry-projects organization coding standards](https://github.com/petry-projects/.github/blob/main/AGENTS.md). That document defines mandatory practices for:
+All code in this repository MUST comply with the [combsmith organization coding standards](https://github.com/combsmith/.github/blob/main/AGENTS.md). That document defines mandatory practices for:
 
 - **TDD** — tests before implementation, no `.skip()`, no coverage-ignore comments
 - **Pre-commit quality checks** — format, lint, type-check, and test before every commit

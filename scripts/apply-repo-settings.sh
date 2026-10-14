@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# apply-repo-settings.sh — Apply standard repository settings to petry-projects/broodly
+# apply-repo-settings.sh — Apply standard repository settings to combsmith/broodly
 #
 # Applies settings defined in:
-#   https://github.com/petry-projects/.github/blob/main/standards/github-settings.md
+#   https://github.com/combsmith/.github/blob/main/standards/github-settings.md
 #
 # Settings managed:
 #   security_and_analysis — enables the required repo-level secret-scanning and
 #     Dependabot settings from the push-protection standard, including
 #     secret_scanning_non_provider_patterns.
-#     https://github.com/petry-projects/.github/blob/main/standards/push-protection.md#required-repo-level-settings
+#     https://github.com/combsmith/.github/blob/main/standards/push-protection.md#required-repo-level-settings
 #   check-suite preferences — disables auto-trigger for the Claude GitHub App (ID 1236702)
 #     and CodeRabbit (ID 347564) so that they no longer create perpetually-queued check
 #     suites on every push, which would otherwise block auto-merge indefinitely.
@@ -26,7 +26,7 @@
 
 set -euo pipefail
 
-ORG="petry-projects"
+ORG="combsmith"
 REPO="broodly"
 DRY_RUN=false
 FORCE=false
@@ -60,7 +60,7 @@ export GH_TOKEN
 
 # Safety guard: verify the current git remote matches ORG/REPO.
 # Prevents accidentally targeting the wrong repository when running from a fork
-# or a different checkout that has administration access to petry-projects/broodly.
+# or a different checkout that has administration access to combsmith/broodly.
 if [[ "$FORCE" = false ]]; then
   actual_repo=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || true)
   if [[ -z "$actual_repo" ]]; then
@@ -85,7 +85,7 @@ fi
 # without aborting the rest of the run.
 #
 # Required set:
-#   https://github.com/petry-projects/.github/blob/main/standards/push-protection.md#required-repo-level-settings
+#   https://github.com/combsmith/.github/blob/main/standards/push-protection.md#required-repo-level-settings
 # ---------------------------------------------------------------------------
 readonly -a REQUIRED_SA_SETTINGS=(
   secret_scanning

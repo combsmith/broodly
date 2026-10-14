@@ -1,9 +1,9 @@
 # Copilot Instructions — broodly
 
-> **Note:** This file applies to the `petry-projects/broodly` repository only. Org-wide Copilot
-> rules are in [`petry-projects/.github/copilot-instructions.md`](https://github.com/petry-projects/.github/blob/main/copilot-instructions.md).
+> **Note:** This file applies to the `combsmith/broodly` repository only. Org-wide Copilot
+> rules are in [`combsmith/.github/copilot-instructions.md`](https://github.com/combsmith/.github/blob/main/copilot-instructions.md).
 > Comprehensive agent/AI coding standards (including TDD, architecture, and BMAD workflow) are
-> in [`petry-projects/.github/AGENTS.md`](https://github.com/petry-projects/.github/blob/main/AGENTS.md).
+> in [`combsmith/.github/AGENTS.md`](https://github.com/combsmith/.github/blob/main/AGENTS.md).
 > This file covers only what is specific to broodly.
 
 ## About
@@ -70,8 +70,8 @@ package development or mobile-only work:
 
 ## Org Standards
 
-See [petry-projects/.github — AGENTS.md](https://github.com/petry-projects/.github/blob/main/AGENTS.md) for org-wide agent/AI coding standards (TDD, architecture, BMAD workflow).
-See [petry-projects/.github/copilot-instructions.md](https://github.com/petry-projects/.github/blob/main/copilot-instructions.md) for org-wide Copilot instructions.
+See [combsmith/.github — AGENTS.md](https://github.com/combsmith/.github/blob/main/AGENTS.md) for org-wide agent/AI coding standards (TDD, architecture, BMAD workflow).
+See [combsmith/.github/copilot-instructions.md](https://github.com/combsmith/.github/blob/main/copilot-instructions.md) for org-wide Copilot instructions.
 
 **Language-specific instructions** (applied automatically by Copilot when you open matching file types):
 

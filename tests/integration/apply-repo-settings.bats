@@ -19,7 +19,7 @@ setup() {
 #!/usr/bin/env bash
 printf '%s\n' "\$*" >> "$CALL_LOG"
 if [ "\$1" = "repo" ] && [ "\$2" = "view" ]; then
-  echo "petry-projects/broodly"
+  echo "combsmith/broodly"
   exit 0
 fi
 # Drain stdin for the PATCH --input - call so the pipe does not break.
@@ -46,13 +46,13 @@ MOCK
 @test "applies check-suite preferences via the plural check-suites/preferences endpoint" {
   run bash "$SCRIPT" broodly
   [ "$status" -eq 0 ]
-  grep -q "api -X PATCH repos/petry-projects/broodly/check-suites/preferences" "$CALL_LOG"
+  grep -q "api -X PATCH repos/combsmith/broodly/check-suites/preferences" "$CALL_LOG"
 }
 
 @test "never targets the non-existent singular check-suite/preferences endpoint" {
   run bash "$SCRIPT" broodly
   [ "$status" -eq 0 ]
-  ! grep -qE "repos/petry-projects/broodly/check-suite/preferences" "$CALL_LOG"
+  ! grep -qE "repos/combsmith/broodly/check-suite/preferences" "$CALL_LOG"
 }
 
 @test "dry-run makes no PATCH call" {
