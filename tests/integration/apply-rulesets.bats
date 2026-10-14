@@ -25,7 +25,7 @@ setup() {
 #!/usr/bin/env bash
 printf '%s\n' "\$*" >> "$CALL_LOG"
 if [ "\$1" = "repo" ] && [ "\$2" = "view" ]; then
-  echo "petry-projects/broodly"
+  echo "combsmith/broodly"
   exit 0
 fi
 if [ "\$1" = "api" ]; then

@@ -4,7 +4,7 @@
 
 Broodly is a field-first beekeeping decision-support app. Mobile-first on iOS, Android, and web via a single Expo + React Native codebase. Backend is Go (chi + gqlgen) on GCP.
 
-> **Organization standards:** This repo inherits shared standards from [petry-projects/.github/AGENTS.md](https://github.com/petry-projects/.github/blob/main/AGENTS.md). The sections below are project-specific.
+> **Organization standards:** This repo inherits shared standards from [combsmith/.github/AGENTS.md](https://github.com/combsmith/.github/blob/main/AGENTS.md). The sections below are project-specific.
 
 **Figma Design File:** https://www.figma.com/design/pL2D8Cvu6XdrI9NBREr3nE/Broodly
 

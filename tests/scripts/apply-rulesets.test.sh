@@ -192,7 +192,7 @@ assert_contains '"name": "code-quality"' "emits code-quality ruleset"
 # --repo flag support
 #
 # The compliance remediation for this repo documents running:
-#   scripts/apply-rulesets.sh --repo petry-projects/broodly
+#   scripts/apply-rulesets.sh --repo combsmith/broodly
 # so the script must accept a --repo <owner/repo> argument (and --repo=<owner/repo>)
 # without breaking, still codifying the pr-quality ruleset. Malformed or missing
 # values must be rejected.
@@ -205,7 +205,7 @@ run_script() {
 }
 
 # --repo <owner/repo> (space form) is accepted and still emits the pr-quality ruleset.
-run_script --repo petry-projects/broodly --dry-run --force
+run_script --repo combsmith/broodly --dry-run --force
 if [[ "$_rs_exit" -eq 0 ]]; then
   echo "ok - accepts --repo <owner/repo> (space form)"
   pass_count=$((pass_count + 1))
@@ -238,7 +238,7 @@ else
 fi
 
 # --repo=<owner/repo> (equals form) is accepted.
-run_script --repo=petry-projects/broodly --dry-run --force
+run_script --repo=combsmith/broodly --dry-run --force
 if [[ "$_rs_exit" -eq 0 ]]; then
   echo "ok - accepts --repo=<owner/repo> (equals form)"
   pass_count=$((pass_count + 1))

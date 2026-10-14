@@ -2,8 +2,8 @@
 # https://github.com/apps/settings
 #
 # This file brings the repository into compliance with the
-# petry-projects organization standards:
-# https://github.com/petry-projects/.github/blob/main/standards/github-settings.md
+# combsmith organization standards:
+# https://github.com/combsmith/.github/blob/main/standards/github-settings.md
 #
 # Rulesets (managed via GitHub API, not probot/settings):
 #   - pr-quality      (id: 14592511) — squash-only, 1 required review, code-owner

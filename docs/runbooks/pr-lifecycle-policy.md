@@ -3,7 +3,7 @@
 ## Purpose
 
 This runbook establishes PR age thresholds, epic branch expectations, and triage cadence
-for the `petry-projects/broodly` repository.
+for the `combsmith/broodly` repository.
 
 ## Automated Stale Detection
 

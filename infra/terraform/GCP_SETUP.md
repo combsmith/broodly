@@ -66,7 +66,7 @@ gcloud iam service-accounts add-iam-policy-binding \
   "broodly-ci@broodly-491920.iam.gserviceaccount.com" \
   --project="broodly-491920" \
   --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/projects/922040293304/locations/global/workloadIdentityPools/github-actions/attribute.repository/petry-projects/broodly"
+  --member="principalSet://iam.googleapis.com/projects/922040293304/locations/global/workloadIdentityPools/github-actions/attribute.repository/combsmith/broodly"
 ```
 
 > **Note:** Update the `attribute.repository` value if the GitHub repo moves to a different org/name.
@@ -86,9 +86,9 @@ gcloud artifacts repositories create broodly \
 These secrets are required by the CI/CD pipeline (`.github/workflows/ci.yml`):
 
 ```bash
-gh secret set GCP_PROJECT_ID --repo petry-projects/broodly --body "broodly-491920"
-gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER --repo petry-projects/broodly --body "projects/922040293304/locations/global/workloadIdentityPools/github-actions/providers/github"
-gh secret set GCP_SERVICE_ACCOUNT --repo petry-projects/broodly --body "broodly-ci@broodly-491920.iam.gserviceaccount.com"
+gh secret set GCP_PROJECT_ID --repo combsmith/broodly --body "broodly-491920"
+gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER --repo combsmith/broodly --body "projects/922040293304/locations/global/workloadIdentityPools/github-actions/providers/github"
+gh secret set GCP_SERVICE_ACCOUNT --repo combsmith/broodly --body "broodly-ci@broodly-491920.iam.gserviceaccount.com"
 ```
 
 ## 4. Firebase Console (Manual)

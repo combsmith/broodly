@@ -1,13 +1,13 @@
 # GitHub Repository Settings — Terraform
 #
-# Manages GitHub repository rulesets for petry-projects/broodly.
+# Manages GitHub repository rulesets for combsmith/broodly.
 # Apply with a GitHub token that has `administration:write` scope on this repo:
 #
 #   export TF_VAR_github_token=<your-token>
 #   terraform init
 #   terraform apply
 #
-# Standard: https://github.com/petry-projects/.github/blob/main/standards/github-settings.md
+# Standard: https://github.com/combsmith/.github/blob/main/standards/github-settings.md
 
 terraform {
   required_version = ">= 1.5"

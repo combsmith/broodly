@@ -9,7 +9,7 @@
 # NOT verify this file's *contract* — the exact invariants its own header marks
 # "MUST NOT change":
 #   - trigger must be `pull_request_target` (not `pull_request` or `push`)
-#   - it must call the org reusable via `uses: petry-projects/.github/.github/
+#   - it must call the org reusable via `uses: combsmith/.github/.github/
 #     workflows/dependabot-automerge-reusable.yml@...`
 #   - it must forward org secrets via `secrets: inherit`
 #   - it must declare a job-level `permissions:` block (the reusable's gh API
@@ -68,7 +68,7 @@ for job in jobs.values():
     if isinstance(job, dict):
         uses_val = job.get("uses", "")
         if isinstance(uses_val, str) and re.match(
-            r'petry-projects/\.github/\.github/workflows/dependabot-automerge-reusable\.yml@',
+            r'combsmith/\.github/\.github/workflows/dependabot-automerge-reusable\.yml@',
             uses_val,
         ):
             da_job = job
