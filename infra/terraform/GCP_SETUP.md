@@ -11,6 +11,19 @@ This document records the one-time GCP configuration steps that cannot be automa
 
 These steps allow GitHub Actions to authenticate to GCP without service account keys.
 
+### 1.0 Enable Required APIs
+
+```bash
+gcloud services enable \
+  iam.googleapis.com \
+  iamcredentials.googleapis.com \
+  sts.googleapis.com \
+  artifactregistry.googleapis.com \
+  --project="broodly-491920"
+```
+
+> **Note:** `iamcredentials.googleapis.com` is required for the WIF provider to impersonate `broodly-ci`. Without it, `google-github-actions/auth` succeeds but `docker push` fails with `IAM Service Account Credentials API has not been used in project 922040293304 before or it is disabled`.
+
 ### 1.1 Create CI Service Account
 
 ```bash
