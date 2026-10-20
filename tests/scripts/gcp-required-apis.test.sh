@@ -42,8 +42,8 @@ tf_declares_api() {
   local path="$1" api="$2"
   # Only lines inside a google_project_service block (tracked by brace depth)
   # are considered, so a quoted API in locals or another resource never counts.
-  awk -v api="${api//./\\.}" '
-    BEGIN { re = "^[[:space:]]*(service[[:space:]]*=[[:space:]]*)?\"" api "\",?[[:space:]]*(#.*)?$" }
+  awk -v api="$api" '
+    BEGIN { gsub(/\./, "[.]", api); re = "^[[:space:]]*(service[[:space:]]*=[[:space:]]*)?\"" api "\",?[[:space:]]*(#.*)?$" }
     !in_res && /^[[:space:]]*resource[[:space:]]+"google_project_service"/ { in_res = 1; depth = 0 }
     in_res {
       if ($0 ~ re) found = 1
