@@ -196,6 +196,10 @@ jobs:
         # Rejects '*'/'**' wildcards in sonar.sources / sonar.tests, which
         # SonarCloud fails deterministically on (Fleet Monitor #533).
         run: bash tests/scripts/sonar-config.test.sh
+      - name: GCP required APIs guard
+        # Keeps the APIs the Push API Image job needs codified in Terraform
+        # and its credential preflight in place (Fleet Monitor #607/#611).
+        run: bash tests/scripts/gcp-required-apis.test.sh
       - name: Workflow validator test
         run: bash tests/scripts/validate-workflows.test.sh
       - name: Dependabot auto-merge contract test
@@ -264,6 +268,18 @@ jobs:
       - name: Configure Docker for Artifact Registry
         if: steps.auth.outcome == 'success'
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      # The auth step only writes a WIF credentials file; service-account
+      # impersonation is deferred until first use. Mint a token now so a
+      # missing GCP API (e.g. iamcredentials.googleapis.com, issues #607/#611)
+      # fails here with a clear message instead of as an opaque docker push denial.
+      - name: Verify GCP credentials
+        if: steps.auth.outcome == 'success'
+        run: |
+          if ! gcloud auth print-access-token > /dev/null; then
+            echo "::error title=GCP credentials unusable::Could not mint an access token for the CI service account. Ensure the APIs in infra/terraform/environments/dev/main.tf (google_project_service.ci_required) are enabled — run 'terraform apply' there or see infra/terraform/GCP_SETUP.md step 1.0."
+            exit 1
+          fi
 
       - name: Build and push container image
         if: steps.auth.outcome == 'success'

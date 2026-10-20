@@ -13,6 +13,8 @@ These steps allow GitHub Actions to authenticate to GCP without service account 
 
 ### 1.0 Enable Required APIs
 
+These APIs are codified in Terraform as `google_project_service.ci_required` in `infra/terraform/environments/dev/main.tf`, so `terraform apply` enables them. To enable them before the first apply, run:
+
 ```bash
 gcloud services enable \
   iam.googleapis.com \
