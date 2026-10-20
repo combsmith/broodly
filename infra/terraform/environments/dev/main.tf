@@ -24,6 +24,30 @@ provider "google-beta" {
 }
 
 # -----------------------------------------------------------------------------
+# Project APIs — required for GitHub Actions (Workload Identity Federation) to
+# impersonate broodly-ci and push the API image to Artifact Registry.
+# Without iamcredentials.googleapis.com, google-github-actions/auth succeeds but
+# docker push fails with "Unauthenticated request" (issues #607, #611).
+# Guarded by tests/scripts/gcp-required-apis.test.sh.
+# -----------------------------------------------------------------------------
+
+resource "google_project_service" "ci_required" {
+  for_each = toset([
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "sts.googleapis.com",
+    "artifactregistry.googleapis.com",
+  ])
+
+  project = var.project_id
+  service = each.value
+
+  # Leave APIs enabled if this resource is removed; disabling them would break
+  # CI image pushes and any other workload sharing the project.
+  disable_on_destroy = false
+}
+
+# -----------------------------------------------------------------------------
 # Secret Manager — secret containers only (values added manually or via CI)
 # -----------------------------------------------------------------------------
 
