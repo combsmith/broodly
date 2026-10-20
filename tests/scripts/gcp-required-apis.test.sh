@@ -40,8 +40,22 @@ pass_count=0
 # lists "<api>" as a quoted element.
 tf_declares_api() {
   local path="$1" api="$2"
-  grep -q 'resource "google_project_service"' "$path" || return 1
-  grep -Eq "^[[:space:]]*(service[[:space:]]*=[[:space:]]*)?\"${api//./\\.}\",?[[:space:]]*(#.*)?$" "$path"
+  # Only lines inside a google_project_service block (tracked by brace depth)
+  # are considered, so a quoted API in locals or another resource never counts.
+  awk -v api="${api//./\\.}" '
+    BEGIN { re = "^[[:space:]]*(service[[:space:]]*=[[:space:]]*)?\"" api "\",?[[:space:]]*(#.*)?$" }
+    !in_res && /^[[:space:]]*resource[[:space:]]+"google_project_service"/ { in_res = 1; depth = 0 }
+    in_res {
+      if ($0 ~ re) found = 1
+      line = $0
+      sub(/[[:space:]]*(#|\/\/).*$/, "", line)
+      opens = gsub(/\{/, "{", line)
+      closes = gsub(/\}/, "}", line)
+      depth += opens - closes
+      if (depth <= 0 && (opens > 0 || closes > 0)) in_res = 0
+    }
+    END { exit found ? 0 : 1 }
+  ' "$path"
 }
 
 # job_has_preflight_before_build <ci-file>
@@ -90,6 +104,25 @@ EOF
 ! tf_declares_api "$_comment_tf" "iamcredentials.googleapis.com" \
   && { echo "ok - checker ignores an API named only in a comment"; pass_count=$((pass_count + 1)); } \
   || { echo "not ok - checker counted an API named only in a comment"; fail=1; }
+
+# An API quoted outside any google_project_service block (e.g. in locals) must
+# not count as enabling it.
+_locals_tf="${_fixture_dir}/locals.tf"
+cat > "$_locals_tf" <<'EOF'
+locals {
+  required_apis = [
+    "iamcredentials.googleapis.com",
+  ]
+}
+
+resource "google_project_service" "other" {
+  service = "iam.googleapis.com"
+}
+EOF
+
+! tf_declares_api "$_locals_tf" "iamcredentials.googleapis.com" \
+  && { echo "ok - checker ignores an API listed outside the google_project_service block"; pass_count=$((pass_count + 1)); } \
+  || { echo "not ok - checker counted an API listed outside the google_project_service block"; fail=1; }
 
 # --- Positive assertions: the real Terraform enables every required API. -----
 for api in "${REQUIRED_APIS[@]}"; do
