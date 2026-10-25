@@ -40,9 +40,13 @@ overrides:
 # through @expo/html-elements > react-native > metro > micromatch > braces.
 # Suppressed until braces 3.0.4+ is released.
 # Re-evaluate when: https://github.com/micromatch/braces/releases shows >= 3.0.4
+# zod < 4.6.6 has a DoS advisory on oversized constrained collections.
+# @expo/cli depends on zod v3 (^3.23.8) and there is no v3 patch (fix is >= 4.6.6).
+# Suppressed until @expo/cli migrates to zod v4 or a v3 backport is published.
 audit:
   ignore:
     - GHSA-w3rx-r6r6-pgpr
     - GHSA-5p2g-fcmc-qvqq
     - GHSA-86w9-cpqp-85rv
     - GHSA-vfj7-8cjw-p6xm
+    - GHSA-mrhx-c7xc-m3w5
