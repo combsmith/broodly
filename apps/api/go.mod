@@ -10,4 +10,4 @@ go 1.24
 // ensures all builds use 1.26.6, which fixes these vulnerabilities.
 toolchain go1.26.6
 
-require github.com/go-chi/chi/v5 v5.3.2
+require github.com/go-chi/chi/v5 v5.4.0
