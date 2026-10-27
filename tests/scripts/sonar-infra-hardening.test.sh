@@ -46,16 +46,19 @@ final_stage_user() {
 runs_as_non_root() {
   local user
   user="$(final_stage_user "$1")"
-  [[ -n "$user" && "${user%%:*}" != "root" && "${user%%:*}" != "0" ]]
+  # Only the distroless non-root identity is accepted: an unknown user name
+  # makes Cloud Run fall back to root, so a bare "not root" spelling is not enough.
+  [[ "$user" == "nonroot" || "$user" == "nonroot:nonroot" || "$user" == "65532" || "$user" == "65532:65532" ]]
 }
 
 # has_db_flag <tf-file> <flag> <value>
 # Succeeds when a database_flags block sets name = <flag> and value = <value>.
 has_db_flag() {
   awk -v flag="$2" -v want="$3" '
-    /database_flags[[:space:]]*\{/ { in_blk = 1; name = ""; value = ""; next }
-    in_blk && /name[[:space:]]*=/  { line = $0; sub(/.*=[[:space:]]*"/, "", line); sub(/".*/, "", line); name = line }
-    in_blk && /value[[:space:]]*=/ { line = $0; sub(/.*=[[:space:]]*"/, "", line); sub(/".*/, "", line); value = line }
+    /^[[:space:]]*(#|\/\/)/ { next }
+    /^[[:space:]]*database_flags[[:space:]]*\{/ { in_blk = 1; name = ""; value = ""; next }
+    in_blk && /^[[:space:]]*name[[:space:]]*=/  { line = $0; sub(/.*=[[:space:]]*"/, "", line); sub(/".*/, "", line); name = line }
+    in_blk && /^[[:space:]]*value[[:space:]]*=/{ line = $0; sub(/.*=[[:space:]]*"/, "", line); sub(/".*/, "", line); value = line }
     in_blk && /\}/ { if (name == flag && value == want) found = 1; in_blk = 0 }
     END { exit found ? 0 : 1 }
   ' "$1"
@@ -72,14 +75,32 @@ done
 check "cloud-sql enforces encrypted connections (ssl_mode = ENCRYPTED_ONLY)" \
   grep -Eq '^[[:space:]]*ssl_mode[[:space:]]*=[[:space:]]*"(ENCRYPTED_ONLY|TRUSTED_CLIENT_CERTIFICATE_REQUIRED)"' "$SQL_MAIN"
 
-check "cloud-sql authorized_networks rejects 0.0.0.0/0" \
-  grep -q '0\.0\.0\.0/0' "$SQL_VARS"
+check "cloud-sql enforces connector-only access (connector_enforcement = REQUIRED)" \
+  grep -Eq '^[[:space:]]*connector_enforcement[[:space:]]*=[[:space:]]*"REQUIRED"' "$SQL_MAIN"
+
+check "cloud-sql authorized_networks validation rejects 0.0.0.0/0" \
+  grep -Eq '^[[:space:]]*condition[[:space:]]*=.*!contains\(\[[^]]*"0\.0\.0\.0/0"' "$SQL_VARS"
 
 check "storage media bucket has an access logging block" \
   grep -Eq '^[[:space:]]*log_bucket[[:space:]]*=' "$STORAGE_MAIN"
 
-check "storage grants Cloud Storage analytics write access to the log bucket" \
-  grep -q 'group:cloud-storage-analytics@google.com' "$STORAGE_MAIN"
+# iam_member_grants <tf-file> <bucket-ref> <role> <member>
+# Succeeds when a single google_storage_bucket_iam_member resource sets all three.
+iam_member_grants() {
+  awk -v bucket="$2" -v role="$3" -v member="$4" '
+    /^[[:space:]]*(#|\/\/)/ { next }
+    /^resource[[:space:]]+"google_storage_bucket_iam_member"/ { in_res = 1; b = r = m = 0; next }
+    in_res && /^[[:space:]]*bucket[[:space:]]*=/ { if (index($0, bucket)) b = 1 }
+    in_res && /^[[:space:]]*role[[:space:]]*=/   { if (index($0, "\"" role "\"")) r = 1 }
+    in_res && /^[[:space:]]*member[[:space:]]*=/ { if (index($0, "\"" member "\"")) m = 1 }
+    in_res && /^\}/ { if (b && r && m) found = 1; in_res = 0 }
+    END { exit found ? 0 : 1 }
+  ' "$1"
+}
+
+check "storage grants Cloud Storage analytics objectCreator on the log bucket" \
+  iam_member_grants "$STORAGE_MAIN" "google_storage_bucket.access_logs.name" \
+    "roles/storage.objectCreator" "group:cloud-storage-analytics@google.com"
 
 echo
 if [[ "$fail" -ne 0 ]]; then
