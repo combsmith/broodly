@@ -14,6 +14,27 @@ resource "google_sql_database_instance" "main" {
       value = "on"
     }
 
+    # Audit logging: record session lifecycle, checkpoints, and lock waits.
+    database_flags {
+      name  = "log_connections"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_disconnections"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_checkpoints"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_lock_waits"
+      value = "on"
+    }
+
     backup_configuration {
       enabled                        = true
       point_in_time_recovery_enabled = true
@@ -27,7 +48,15 @@ resource "google_sql_database_instance" "main" {
     }
 
     ip_configuration {
-      ipv4_enabled = true
+      # Public IP is required: Cloud Run reaches the instance through the
+      # Cloud SQL connector (/cloudsql socket), and there is no VPC/private
+      # service access in this project. Connector traffic is IAM-authorized
+      # and TLS-encrypted; authorized_networks defaults to empty and rejects
+      # 0.0.0.0/0 (see variables.tf), so no direct public access is granted.
+      ipv4_enabled = true # NOSONAR — terraform:S6329 confirmed safe, see comment above
+
+      # Reject unencrypted connections; the Cloud SQL connector always uses TLS.
+      ssl_mode = "ENCRYPTED_ONLY"
 
       dynamic "authorized_networks" {
         for_each = var.authorized_networks
