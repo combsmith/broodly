@@ -11,6 +11,9 @@ FROM gcr.io/distroless/static-debian12@sha256:9c346e4be81b5ca7ff31a0d89eaeade58b
 
 COPY --from=builder /bin/server /server
 
+# Run as the distroless unprivileged user (uid/gid 65532), never root.
+USER nonroot:nonroot
+
 EXPOSE 8080
 
 ENTRYPOINT ["/server"]

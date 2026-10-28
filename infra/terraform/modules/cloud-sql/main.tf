@@ -9,8 +9,33 @@ resource "google_sql_database_instance" "main" {
     tier              = var.tier
     availability_type = var.availability_type
 
+    # Public-IP connections must go through the Cloud SQL connector (IAM
+    # authorization + TLS); direct client connections are rejected.
+    connector_enforcement = "REQUIRED"
+
     database_flags {
       name  = "cloudsql.enable_pgvector"
+      value = "on"
+    }
+
+    # Audit logging: record session lifecycle, checkpoints, and lock waits.
+    database_flags {
+      name  = "log_connections"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_disconnections"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_checkpoints"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_lock_waits"
       value = "on"
     }
 
@@ -27,7 +52,19 @@ resource "google_sql_database_instance" "main" {
     }
 
     ip_configuration {
+      # Public IP is required: Cloud Run reaches the instance through the
+      # Cloud SQL connector (/cloudsql socket), and there is no VPC/private
+      # service access in this project. connector_enforcement = "REQUIRED"
+      # (see settings above) rejects any connection that bypasses the connector,
+      # so even a caller-supplied authorized_networks range cannot open direct
+      # access; connector traffic is IAM-authorized and TLS-encrypted.
+      # The public IPv4 endpoint still exists, so terraform:S6329 stays an
+      # accepted-risk finding to be tracked via the exception process (not
+      # suppressed as a false positive) until private IP + VPC egress lands.
       ipv4_enabled = true
+
+      # Reject unencrypted connections; the Cloud SQL connector always uses TLS.
+      ssl_mode = "ENCRYPTED_ONLY"
 
       dynamic "authorized_networks" {
         for_each = var.authorized_networks
