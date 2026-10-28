@@ -58,7 +58,10 @@ resource "google_sql_database_instance" "main" {
       # (see settings above) rejects any connection that bypasses the connector,
       # so even a caller-supplied authorized_networks range cannot open direct
       # access; connector traffic is IAM-authorized and TLS-encrypted.
-      ipv4_enabled = true # NOSONAR — terraform:S6329 confirmed safe: connector_enforcement = "REQUIRED" enforces all public-IP connections use the Cloud SQL connector
+      # The public IPv4 endpoint still exists, so terraform:S6329 stays an
+      # accepted-risk finding to be tracked via the exception process (not
+      # suppressed as a false positive) until private IP + VPC egress lands.
+      ipv4_enabled = true
 
       # Reject unencrypted connections; the Cloud SQL connector always uses TLS.
       ssl_mode = "ENCRYPTED_ONLY"

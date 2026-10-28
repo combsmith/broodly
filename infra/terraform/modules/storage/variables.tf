@@ -24,6 +24,12 @@ variable "bucket_name" {
     condition     = can(regex("^[a-z0-9][a-z0-9_-]{1,49}[a-z0-9]$", var.bucket_name))
     error_message = "bucket_name must be 3-51 chars of lowercase letters, digits, hyphens or underscores (no dots), starting and ending with a letter or digit, so the derived '-access-logs' bucket name stays valid."
   }
+
+  # Cloud Storage reserves names starting with "goog" or containing "google".
+  validation {
+    condition     = !can(regex("^goog|google", var.bucket_name))
+    error_message = "bucket_name must not start with 'goog' or contain 'google' (reserved by Cloud Storage)."
+  }
 }
 
 variable "cors_origins" {
