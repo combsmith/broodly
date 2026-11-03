@@ -85,6 +85,31 @@ function parseIgnoredPackages(): Set<string> {
   return packages;
 }
 
+/** Parse ignore entries that carry a `versions:` scope into name -> normalized ranges. */
+function parseIgnoredVersionScopes(): Map<string, string[]> {
+  const text = readFileSync(resolve(REPO_ROOT, '.github/dependabot.yml'), 'utf8');
+  const scopes = new Map<string, string[]>();
+  const re = /^[ \t]*-[ \t]+dependency-name:[ \t]*['"]?([^'"\n]+?)['"]?[ \t]*\n((?:[ \t]+(?:versions:|-[ \t]+['"][^\n]*)\n?)*)/gm;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const ranges = [...match[2].matchAll(/-[ \t]+['"]([^'"\n]+)['"]/g)].map((m) => m[1]);
+    if (ranges.length > 0) scopes.set(match[1].trim(), ranges);
+  }
+  return scopes;
+}
+
+/** Parse range-scoped override keys (e.g. "glob@>=9.0.0 <14.0.2") into name -> range. */
+function parseOverrideRanges(): Map<string, string> {
+  const text = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8');
+  const ranges = new Map<string, string>();
+  for (const m of text.matchAll(/^[ \t]+['"]([^'"\n]+)['"]:/gm)) {
+    const key = m[1];
+    const at = key.indexOf('@', key.startsWith('@') ? 1 : 0);
+    if (at !== -1) ranges.set(key.slice(0, at), key.slice(at + 1));
+  }
+  return ranges;
+}
+
 describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
   let overridePackages: Set<string>;
   let ignoredPackages: Set<string>;
@@ -111,5 +136,18 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
   it('has no stale ignore entries without a matching override', () => {
     const extra = [...ignoredPackages].filter((p) => !overridePackages.has(p)).sort();
     expect(extra).toEqual([]);
+  });
+
+  it('scopes glob and minimatch ignores to the override version ranges', () => {
+    // Ignoring every version would also suppress security updates for versions
+    // the overrides do not cover (e.g. glob@7.x, minimatch@3.x via test-exclude).
+    const overrideRanges = parseOverrideRanges();
+    const scopes = parseIgnoredVersionScopes();
+    for (const name of ['glob', 'minimatch']) {
+      const range = overrideRanges.get(name);
+      expect(range).toBeDefined();
+      const normalize = (r: string) => r.replace(/,/g, ' ').replace(/([<>=]+)\s+/g, '$1').replace(/\s+/g, ' ').trim();
+      expect((scopes.get(name) ?? []).map(normalize)).toEqual([normalize(range as string)]);
+    }
   });
 });
