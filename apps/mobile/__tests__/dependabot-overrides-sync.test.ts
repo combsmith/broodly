@@ -138,16 +138,36 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
     expect(extra).toEqual([]);
   });
 
-  it('scopes glob and minimatch ignores to the override version ranges', () => {
-    // Ignoring every version would also suppress security updates for versions
-    // the overrides do not cover (e.g. glob@7.x, minimatch@3.x via test-exclude).
+  it('ignores glob and minimatch override targets as candidate versions', () => {
+    // Dependabot applies `versions` to candidate target releases. The ignore must
+    // therefore cover the override target (e.g. glob@14.0.2), while candidates
+    // for versions the overrides do not cover (e.g. glob@7.2.3 and
+    // minimatch@3.1.5 via test-exclude) stay eligible.
     const overrideRanges = parseOverrideRanges();
     const scopes = parseIgnoredVersionScopes();
-    for (const name of ['glob', 'minimatch']) {
+    const parse = (v: string): number[] => v.split('.').map((n) => parseInt(n, 10));
+    const gte = (a: string, b: string): boolean => {
+      const [x, y] = [parse(a), parse(b)];
+      for (let i = 0; i < 3; i++) {
+        if (x[i] !== y[i]) return x[i] > y[i];
+      }
+      return true;
+    };
+    const ignores = (ranges: string[], candidate: string): boolean =>
+      ranges.some((r) => {
+        const m = /^>=\s*(\d+\.\d+\.\d+)$/.exec(r.trim());
+        return m !== null && gte(candidate, m[1]);
+      });
+    const cases: Record<string, string> = { glob: '7.2.3', minimatch: '3.1.5' };
+    for (const [name, currentVersion] of Object.entries(cases)) {
       const range = overrideRanges.get(name);
       expect(range).toBeDefined();
-      const normalize = (r: string) => r.replace(/,/g, ' ').replace(/([<>=]+)\s+/g, '$1').replace(/\s+/g, ' ').trim();
-      expect((scopes.get(name) ?? []).map(normalize)).toEqual([normalize(range as string)]);
+      // Override range looks like ">=9.0.0 <14.0.2"; its upper bound is the target.
+      const target = /<(\d+\.\d+\.\d+)$/.exec((range as string).trim())?.[1];
+      expect(target).toBeDefined();
+      const ranges = scopes.get(name) ?? [];
+      expect(ignores(ranges, target as string)).toBe(true);
+      expect(ignores(ranges, currentVersion)).toBe(false);
     }
   });
 });

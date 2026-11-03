@@ -26,18 +26,21 @@ updates:
       - dependency-name: "browserslist"
       - dependency-name: "compression"
       - dependency-name: "form-data"
-      # glob/minimatch overrides only cover specific ranges, so scope the ignore
-      # to those ranges. Versions outside them (e.g. glob@7.2.3 and
-      # minimatch@3.1.5 via test-exclude) stay eligible for Dependabot updates.
+      # Dependabot evaluates `versions` against candidate *target* releases, not
+      # the currently installed version. The glob/minimatch overrides force
+      # ranges up to the override target, so ignore candidates at or above that
+      # target (the update attempt that conflicts with the override). Lower
+      # candidates (e.g. updates for glob@7.2.3 and minimatch@3.1.5 via
+      # test-exclude) stay eligible.
       - dependency-name: "glob"
         versions:
-          - ">= 9.0.0, < 14.0.2"
+          - ">= 14.0.2"
       - dependency-name: "handlebars"
       - dependency-name: "js-yaml"
       - dependency-name: "lodash"
       - dependency-name: "minimatch"
         versions:
-          - ">= 9.0.0, < 11.0.1"
+          - ">= 11.0.1"
       - dependency-name: "nanoid"
       - dependency-name: "node-forge"
       - dependency-name: "postcss"
