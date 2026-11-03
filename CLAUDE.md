@@ -71,7 +71,7 @@ IMPORTANT: Broodly's core differentiator is a zero-tap beeyard experience. Once 
 
 ## Key Rules
 
-1. **Figma MCP flow** — always run `get_design_context` + `get_screenshot` before implementing any design
+1. **Figma MCP flow** — call `get_design_context` + `get_screenshot` before implementing any design, every time
 2. **Gluestack UI v3** — use as component foundation, never build custom when a primitive exists
 3. **Compound components** — always use full Gluestack patterns (e.g., `<Button><ButtonText>...</ButtonText></Button>`)
 4. **Color tokens only** — never hardcode hex colors, use `bg-primary-500`, `text-error-600`, etc.
