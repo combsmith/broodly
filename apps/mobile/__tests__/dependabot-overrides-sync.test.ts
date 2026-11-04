@@ -98,14 +98,14 @@ function parseIgnoredVersionScopes(): Map<string, string[]> {
   return scopes;
 }
 
-/** Parse range-scoped override keys (e.g. "glob@>=9.0.0 <14.0.2") into name -> range. */
-function parseOverrideRanges(): Map<string, string> {
+/** Parse range-scoped overrides (e.g. "glob@>=9.0.0 <14.0.2": '>=14.0.2') into name -> override value. */
+function parseOverrideTargets(): Map<string, string> {
   const text = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8');
   const ranges = new Map<string, string>();
-  for (const m of text.matchAll(/^[ \t]+['"]([^'"\n]+)['"]:/gm)) {
+  for (const m of text.matchAll(/^[ \t]+['"]([^'"\n]+)['"]:[ \t]*['"]([^'"\n]+)['"]/gm)) {
     const key = m[1];
     const at = key.indexOf('@', key.startsWith('@') ? 1 : 0);
-    if (at !== -1) ranges.set(key.slice(0, at), key.slice(at + 1));
+    if (at !== -1) ranges.set(key.slice(0, at), m[2]);
   }
   return ranges;
 }
@@ -143,7 +143,7 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
     // therefore cover the override target (e.g. glob@14.0.2), while candidates
     // for versions the overrides do not cover (e.g. glob@7.2.3 and
     // minimatch@3.1.5 via test-exclude) stay eligible.
-    const overrideRanges = parseOverrideRanges();
+    const overrideTargets = parseOverrideTargets();
     const scopes = parseIgnoredVersionScopes();
     const parse = (v: string): number[] => v.split('.').map((n) => parseInt(n, 10));
     const gte = (a: string, b: string): boolean => {
@@ -156,14 +156,15 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
     const ignores = (ranges: string[], candidate: string): boolean =>
       ranges.some((r) => {
         const m = /^>=\s*(\d+\.\d+\.\d+)$/.exec(r.trim());
-        return m !== null && gte(candidate, m[1]);
+        if (m === null) throw new Error(`Unsupported Dependabot version range: ${r}`);
+        return gte(candidate, m[1]);
       });
     const cases: Record<string, string> = { glob: '7.2.3', minimatch: '3.1.5' };
     for (const [name, currentVersion] of Object.entries(cases)) {
-      const range = overrideRanges.get(name);
-      expect(range).toBeDefined();
-      // Override range looks like ">=9.0.0 <14.0.2"; its upper bound is the target.
-      const target = /<(\d+\.\d+\.\d+)$/.exec((range as string).trim())?.[1];
+      const value = overrideTargets.get(name);
+      expect(value).toBeDefined();
+      // Override value looks like ">=14.0.2"; that version is the target.
+      const target = /^>=\s*(\d+\.\d+\.\d+)$/.exec((value as string).trim())?.[1];
       expect(target).toBeDefined();
       const ranges = scopes.get(name) ?? [];
       expect(ignores(ranges, target as string)).toBe(true);
