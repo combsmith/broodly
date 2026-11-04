@@ -85,6 +85,31 @@ function parseIgnoredPackages(): Set<string> {
   return packages;
 }
 
+/** Parse ignore entries that carry a `versions:` scope into name -> normalized ranges. */
+function parseIgnoredVersionScopes(): Map<string, string[]> {
+  const text = readFileSync(resolve(REPO_ROOT, '.github/dependabot.yml'), 'utf8');
+  const scopes = new Map<string, string[]>();
+  const re = /^[ \t]*-[ \t]+dependency-name:[ \t]*['"]?([^'"\n]+?)['"]?[ \t]*\n((?:[ \t]+(?:versions:|-[ \t]+['"][^\n]*)\n?)*)/gm;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const ranges = [...match[2].matchAll(/-[ \t]+['"]([^'"\n]+)['"]/g)].map((m) => m[1]);
+    if (ranges.length > 0) scopes.set(match[1].trim(), ranges);
+  }
+  return scopes;
+}
+
+/** Parse range-scoped overrides (e.g. "glob@>=9.0.0 <14.0.2": '>=14.0.2') into name -> override value. */
+function parseOverrideTargets(): Map<string, string> {
+  const text = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8');
+  const ranges = new Map<string, string>();
+  for (const m of text.matchAll(/^[ \t]+['"]([^'"\n]+)['"]:[ \t]*['"]([^'"\n]+)['"]/gm)) {
+    const key = m[1];
+    const at = key.indexOf('@', key.startsWith('@') ? 1 : 0);
+    if (at !== -1) ranges.set(key.slice(0, at), m[2]);
+  }
+  return ranges;
+}
+
 describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
   let overridePackages: Set<string>;
   let ignoredPackages: Set<string>;
@@ -111,5 +136,39 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
   it('has no stale ignore entries without a matching override', () => {
     const extra = [...ignoredPackages].filter((p) => !overridePackages.has(p)).sort();
     expect(extra).toEqual([]);
+  });
+
+  it('ignores glob and minimatch override targets as candidate versions', () => {
+    // Dependabot applies `versions` to candidate target releases. The ignore must
+    // therefore cover the override target (e.g. glob@14.0.2), while candidates
+    // for versions the overrides do not cover (e.g. glob@7.2.3 and
+    // minimatch@3.1.5 via test-exclude) stay eligible.
+    const overrideTargets = parseOverrideTargets();
+    const scopes = parseIgnoredVersionScopes();
+    const parse = (v: string): number[] => v.split('.').map((n) => parseInt(n, 10));
+    const gte = (a: string, b: string): boolean => {
+      const [x, y] = [parse(a), parse(b)];
+      for (let i = 0; i < 3; i++) {
+        if (x[i] !== y[i]) return x[i] > y[i];
+      }
+      return true;
+    };
+    const ignores = (ranges: string[], candidate: string): boolean =>
+      ranges.some((r) => {
+        const m = /^>=\s*(\d+\.\d+\.\d+)$/.exec(r.trim());
+        if (m === null) throw new Error(`Unsupported Dependabot version range: ${r}`);
+        return gte(candidate, m[1]);
+      });
+    const cases: Record<string, string> = { glob: '7.2.3', minimatch: '3.1.5' };
+    for (const [name, currentVersion] of Object.entries(cases)) {
+      const value = overrideTargets.get(name);
+      expect(value).toBeDefined();
+      // Override value looks like ">=14.0.2"; that version is the target.
+      const target = /^>=\s*(\d+\.\d+\.\d+)$/.exec((value as string).trim())?.[1];
+      expect(target).toBeDefined();
+      const ranges = scopes.get(name) ?? [];
+      expect(ignores(ranges, target as string)).toBe(true);
+      expect(ignores(ranges, currentVersion)).toBe(false);
+    }
   });
 });

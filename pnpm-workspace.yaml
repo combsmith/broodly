@@ -12,10 +12,13 @@ overrides:
   browserslist: '>=4.28.7'
   compression: '>=1.8.2'
   form-data: '>=4.0.6'
+  'glob@>=9.0.0 <14.0.2': '>=14.0.2'
   handlebars: '>=4.7.10'
   js-yaml: '>=4.3.2'
   'lodash@>=4.0.0 <=4.17.23': '>=4.18.0'
+  'minimatch@>=9.0.0 <11.0.1': '>=11.0.1'
   nanoid: '>=3.3.17 <4'
+  node-forge: '>=1.4.1'
   postcss: '>=8.5.18'
   postcss-selector-parser: '>=7.1.6'
   shell-quote: '>=1.11.0'
@@ -30,11 +33,6 @@ overrides:
 # affected range. These are suppressed until image-size 2.0.3+ is available.
 # Re-evaluate when: https://github.com/image-size/image-size/releases shows >= 2.0.3
 #
-# node-forge <= 1.4.0 has a high-severity RSA signature verification vulnerability.
-# The fix (>= 1.4.1) has not been published to npm yet. Expo depends on node-forge
-# for code signing. This is suppressed until node-forge 1.4.1+ is released.
-# Re-evaluate when: https://github.com/digitalbazaar/forge/releases shows >= 1.4.1
-#
 # braces <= 3.0.3 has a high-severity DoS vulnerability through deeply nested patterns.
 # The fix (>= 3.0.4) has not been published to npm yet. This is a transitive dependency
 # through @expo/html-elements > react-native > metro > micromatch > braces.
@@ -47,6 +45,5 @@ audit:
   ignore:
     - GHSA-w3rx-r6r6-pgpr
     - GHSA-5p2g-fcmc-qvqq
-    - GHSA-86w9-cpqp-85rv
     - GHSA-vfj7-8cjw-p6xm
     - GHSA-mrhx-c7xc-m3w5
