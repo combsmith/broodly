@@ -204,6 +204,8 @@ jobs:
         run: bash tests/scripts/validate-workflows.test.sh
       - name: Dependabot auto-merge contract test
         run: bash tests/scripts/dependabot-automerge-contract.test.sh
+      - name: Sonar infra hardening test
+        run: bash tests/scripts/sonar-infra-hardening.test.sh
 
   secret-scan:
     name: Secret scan (gitleaks)

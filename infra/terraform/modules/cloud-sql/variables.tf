@@ -43,6 +43,11 @@ variable "authorized_networks" {
     value = string
   }))
   default = []
+
+  validation {
+    condition     = alltrue([for n in var.authorized_networks : !contains(["0.0.0.0/0", "::/0"], n.value)])
+    error_message = "authorized_networks must not include 0.0.0.0/0 or ::/0 (open to the internet)."
+  }
 }
 
 variable "availability_type" {
