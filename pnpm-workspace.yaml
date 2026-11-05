@@ -41,9 +41,19 @@ overrides:
 # zod < 4.6.6 has a DoS advisory on oversized constrained collections.
 # @expo/cli depends on zod v3 (^3.23.8) and there is no v3 patch (fix is >= 4.6.6).
 # Suppressed until @expo/cli migrates to zod v4 or a v3 backport is published.
+#
+# deepmerge 4.2.0-4.3.1 has a low-severity prototype-poisoning advisory
+# (GHSA-gcqx-w48m-w2h4). No patched version is on npm (4.3.1 is the latest),
+# so neither an upgrade nor an override can fix it. It reaches us through
+# @expo/config (SDK 55) and jest-config 29, which merge developer-controlled
+# app and jest config at build/test time, not runtime input.
+# Suppressed until deepmerge 4.3.2+ is published or Expo/Jest drop it
+# (@expo/config 58 already has).
+# Re-evaluate when: `npm view deepmerge version` shows >= 4.3.2
 audit:
   ignore:
     - GHSA-w3rx-r6r6-pgpr
     - GHSA-5p2g-fcmc-qvqq
     - GHSA-vfj7-8cjw-p6xm
     - GHSA-mrhx-c7xc-m3w5
+    - GHSA-gcqx-w48m-w2h4
