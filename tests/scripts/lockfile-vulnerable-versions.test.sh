@@ -95,12 +95,21 @@ snapshots:
   image-size@1.2.1: {}
 EOF
 
-! check_min "$tmp_lock" 'image-size' '2.0.3' >/dev/null \
-  && ok "guard rejects image-size 1.2.1" || not_ok "guard accepted image-size 1.2.1"
-! check_min "$tmp_lock" 'zod' '4.6.6' >/dev/null \
-  && ok "guard rejects zod 3.25.76" || not_ok "guard accepted zod 3.25.76"
-! check_min "$tmp_lock" 'metro(-[a-z-]+)?' '0.83.8' >/dev/null \
-  && ok "guard rejects metro-config 0.83.5" || not_ok "guard accepted metro-config 0.83.5"
+if ! check_min "$tmp_lock" 'image-size' '2.0.3' >/dev/null; then
+  ok "guard rejects image-size 1.2.1"
+else
+  not_ok "guard accepted image-size 1.2.1"
+fi
+if ! check_min "$tmp_lock" 'zod' '4.6.6' >/dev/null; then
+  ok "guard rejects zod 3.25.76"
+else
+  not_ok "guard accepted zod 3.25.76"
+fi
+if ! check_min "$tmp_lock" 'metro(-[a-z-]+)?' '0.83.8' >/dev/null; then
+  ok "guard rejects metro-config 0.83.5"
+else
+  not_ok "guard accepted metro-config 0.83.5"
+fi
 [[ "$(resolved_versions "$tmp_lock" 'zod')" == "3.25.76" ]] \
   && ok "parser ignores scoped look-alikes and the snapshots section" \
   || not_ok "parser matched the wrong entries for zod"
@@ -113,6 +122,26 @@ version_lt "4.6.6-rc.1" "4.6.6" \
 version_lt "0.83.10" "0.83.8" \
   && not_ok "comparator sorts lexically instead of by semver" \
   || ok "comparator orders 0.83.10 above 0.83.8"
+
+# Test that check_min rejects a prerelease at the minimum version
+cat > "$tmp_lock" <<'EOF'
+lockfileVersion: '9.0'
+
+packages:
+
+  zod@4.6.6-rc.1:
+    resolution: {integrity: sha512-x}
+
+snapshots:
+
+  zod@4.6.6-rc.1: {}
+EOF
+
+if ! check_min "$tmp_lock" 'zod' '4.6.6' >/dev/null; then
+  ok "guard rejects zod 4.6.6-rc.1 (prerelease at minimum version)"
+else
+  not_ok "guard accepted zod 4.6.6-rc.1 (prerelease at minimum version)"
+fi
 
 # --- Real-file assertions. ----------------------------------------------------
 [[ -f "$LOCKFILE" ]] && ok "pnpm-lock.yaml exists" || not_ok "pnpm-lock.yaml not found"
