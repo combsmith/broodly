@@ -17,6 +17,27 @@ overrides:
   js-yaml: '>=4.3.2'
   'lodash@>=4.0.0 <=4.17.23': '>=4.18.0'
   'minimatch@>=9.0.0 <11.0.1': '>=11.0.1'
+  # metro < 0.83.8 depends on image-size 1.2.1 (GHSA-5p2g-fcmc-qvqq and
+  # GHSA-w3rx-r6r6-pgpr, both High). metro 0.83.8 removed the image-size
+  # dependency. @expo/metro 54.2.0 pins 0.83.3 exactly, so we pin the whole
+  # metro family to 0.83.8 to keep the packages in lockstep. Overriding
+  # image-size to 2.x directly would break Metro, which calls
+  # require('image-size')(path), a call shape image-size 2.x no longer supports.
+  # Drop these entries once Expo ships @expo/metro >= 55.1.2 (pins 0.83.8+).
+  'metro@>=0.83.0 <0.83.8': 0.83.8
+  'metro-babel-transformer@>=0.83.0 <0.83.8': 0.83.8
+  'metro-cache@>=0.83.0 <0.83.8': 0.83.8
+  'metro-cache-key@>=0.83.0 <0.83.8': 0.83.8
+  'metro-config@>=0.83.0 <0.83.8': 0.83.8
+  'metro-core@>=0.83.0 <0.83.8': 0.83.8
+  'metro-file-map@>=0.83.0 <0.83.8': 0.83.8
+  'metro-minify-terser@>=0.83.0 <0.83.8': 0.83.8
+  'metro-resolver@>=0.83.0 <0.83.8': 0.83.8
+  'metro-runtime@>=0.83.0 <0.83.8': 0.83.8
+  'metro-source-map@>=0.83.0 <0.83.8': 0.83.8
+  'metro-symbolicate@>=0.83.0 <0.83.8': 0.83.8
+  'metro-transform-plugins@>=0.83.0 <0.83.8': 0.83.8
+  'metro-transform-worker@>=0.83.0 <0.83.8': 0.83.8
   nanoid: '>=3.3.17 <4'
   node-forge: '>=1.4.1'
   postcss: '>=8.5.18'
@@ -26,22 +47,13 @@ overrides:
   tmp: '>=0.2.6'
   uuid: '>=11.1.1'
   ws: '>=8.21.0'
+  # zod < 4.6.6: GHSA-mrhx-c7xc-m3w5 (High). The only consumer is @expo/cli
+  # (zod ^3.25.76), and there is no v3 backport. @expo/cli only uses zod in its
+  # dev-tools plugin schemas (z.object/string/enum/array/union/literal, .min,
+  # .url, .readonly, .describe, safeParse, error.issues, error.message), and
+  # all of these exist in zod 4. Drop once @expo/cli migrates to zod 4.
+  'zod@<4.6.6': ^4.6.6
 
-# image-size <= 2.0.2 has two high-severity DoS advisories (ICNS and JXL/HEIF
-# parsers). The patched version (>= 2.0.3) has not been published to npm yet.
-# Metro (React Native bundler) pins image-size@1.2.1 which falls in the
-# affected range. These are suppressed until image-size 2.0.3+ is available.
-# Re-evaluate when: https://github.com/image-size/image-size/releases shows >= 2.0.3
-#
-# braces <= 3.0.3 has a high-severity DoS vulnerability through deeply nested patterns.
-# The fix (>= 3.0.4) has not been published to npm yet. This is a transitive dependency
-# through @expo/html-elements > react-native > metro > micromatch > braces.
-# Suppressed until braces 3.0.4+ is released.
-# Re-evaluate when: https://github.com/micromatch/braces/releases shows >= 3.0.4
-# zod < 4.6.6 has a DoS advisory on oversized constrained collections.
-# @expo/cli depends on zod v3 (^3.23.8) and there is no v3 patch (fix is >= 4.6.6).
-# Suppressed until @expo/cli migrates to zod v4 or a v3 backport is published.
-#
 # deepmerge 4.2.0-4.3.1 has a low-severity prototype-poisoning advisory
 # (GHSA-gcqx-w48m-w2h4). No patched version is on npm (4.3.1 is the latest),
 # so neither an upgrade nor an override can fix it. It reaches us through
@@ -52,8 +64,4 @@ overrides:
 # Re-evaluate when: `npm view deepmerge version` shows >= 4.3.2
 audit:
   ignore:
-    - GHSA-w3rx-r6r6-pgpr
-    - GHSA-5p2g-fcmc-qvqq
-    - GHSA-vfj7-8cjw-p6xm
-    - GHSA-mrhx-c7xc-m3w5
     - GHSA-gcqx-w48m-w2h4
