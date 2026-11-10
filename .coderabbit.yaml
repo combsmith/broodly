@@ -11,7 +11,7 @@ reviews:
     - "!_bmad/**"
     - "!_bmad-output/**"
     - "!.claude/**"
-  rules:
+  path_instructions:
     - path: "**/*.yml"
       instructions: >
         Focus on YAML best practices: correct indentation, valid syntax,
