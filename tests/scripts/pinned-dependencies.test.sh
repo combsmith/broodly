@@ -68,9 +68,17 @@ join_continuations() {
 
 # Strip a trailing shell comment: a '#' starts a comment only when it is
 # unquoted, unescaped, and at the start of a word. '#' inside '...' or "..."
-# (e.g. echo "#395") is preserved.
+# (e.g. echo "#395") is preserved. A '#' also starts a comment right after a
+# shell control operator (; & | ( ). A single-line YAML-quoted `run: '...'`
+# scalar is unwrapped first so the YAML quotes are not mistaken for shell
+# quotes (the shell only sees the scalar's content).
 strip_shell_comment() {
   local s="$1" out="" c prev=" " quote="" i
+  if [[ "$s" =~ ^([[:space:]]*(-[[:space:]]+)?run:[[:space:]]+)\'(.*)\'[[:space:]]*$ ]]; then
+    s="${BASH_REMATCH[3]//\'\'/\'}"
+  elif [[ "$s" =~ ^([[:space:]]*(-[[:space:]]+)?run:[[:space:]]+)\"(.*)\"[[:space:]]*$ ]]; then
+    s="${BASH_REMATCH[3]//\\\"/\"}"
+  fi
   for ((i = 0; i < ${#s}; i++)); do
     c="${s:i:1}"
     if [[ "$prev" == "\\" && "$quote" != "'" ]]; then
@@ -80,7 +88,7 @@ strip_shell_comment() {
       [[ "$c" == "$quote" ]] && quote=""
     elif [[ "$c" == "'" || "$c" == '"' ]]; then
       quote="$c"
-    elif [[ "$c" == "#" && ( -z "$prev" || "$prev" =~ [[:space:]] ) ]]; then
+    elif [[ "$c" == "#" && ( -z "$prev" || "$prev" =~ [[:space:]] || "$prev" == [\;\&\|\(] ) ]]; then
       break
     fi
     out+="$c"; prev="$c"
