@@ -11,7 +11,6 @@ reviews:
     - "!_bmad/**"
     - "!_bmad-output/**"
     - "!.claude/**"
-    - "**/*.yml"
   request_changes_workflow: false
   high_level_summary: true
   poem: false
