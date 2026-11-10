@@ -41,7 +41,7 @@ for dockerfile in "${dockerfiles[@]}"; do
     image="$(awk '{ for (i = 2; i <= NF; i++) if ($i !~ /^--/) { print $i; exit } }' <<< "$line")"
     is_alias=0
     for a in "${aliases[@]}"; do
-      [[ "${image,,}" == "$a" ]] && is_alias=1
+      if [[ "${image,,}" == "$a" ]]; then is_alias=1; fi
     done
     if [[ $is_alias -eq 1 || "$image" == "scratch" ]]; then
       continue
@@ -96,8 +96,10 @@ for req in "${reqfiles[@]}"; do
   rel="${req#"${REPO_ROOT}/"}"
   # Join backslash continuations, drop comments/blank lines, check each entry.
   while IFS= read -r entry; do
+    # Skip pip option lines (-r/-c includes, --index-url, ...): not requirements.
+    [[ "$entry" =~ ^[[:space:]]*- ]] && continue
     name="${entry%%[ =<>!~;]*}"
-    if [[ "$entry" =~ ==[^[:space:]]+ && "$entry" == *"--hash=sha256:"* ]]; then
+    if [[ "$entry" =~ ==[^[:space:]]+ && "$entry" =~ --hash=sha256:[0-9a-fA-F]{64}([[:space:]]|$) ]]; then
       pass "${rel}: '${name}' pinned by version and hash"
     else
       failure "${rel}: '${name}' must be pinned with == and --hash=sha256:"
