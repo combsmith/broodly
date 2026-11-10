@@ -136,7 +136,7 @@ if [[ "$fail" -eq 0 ]]; then
   fi
 
   for ghsa in GHSA-5p2g-fcmc-qvqq GHSA-w3rx-r6r6-pgpr GHSA-mrhx-c7xc-m3w5; do
-    if grep -qE "^[[:space:]]*-[[:space:]]*${ghsa}[[:space:]]*$" "$WORKSPACE"; then
+    if grep -qE "^[[:space:]]*-[[:space:]]*['\"]?${ghsa}['\"]?[[:space:]]*(#.*)?$" "$WORKSPACE"; then
       not_ok "pnpm-workspace.yaml still ignores fixed advisory ${ghsa}"
     else
       ok "no stale audit ignore for ${ghsa}"
