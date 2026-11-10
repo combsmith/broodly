@@ -55,6 +55,22 @@ for dockerfile in "${dockerfiles[@]}"; do
 done
 
 # --- Workflow pip installs must use --require-hashes -----------------------
+# Backslash-continued shell lines are joined first so a flag on a continuation
+# line is seen as part of the same command. Both .yml and .yaml are scanned.
+join_continuations() {
+  awk -v f="$1" '
+    { if (buf == "") start = FNR }
+    /\\[[:space:]]*$/ { sub(/\\[[:space:]]*$/, ""); buf = buf $0; next }
+    { print f ":" start ":" buf $0; buf = "" }
+    END { if (buf != "") print f ":" start ":" buf }
+  ' "$1"
+}
+
+workflow_files=()
+for wf in "${REPO_ROOT}"/.github/workflows/*.yml "${REPO_ROOT}"/.github/workflows/*.yaml; do
+  [[ -f "$wf" ]] && workflow_files+=("$wf")
+done
+
 while IFS= read -r hit; do
   file="${hit%%:*}"
   rest="${hit#*:}"
@@ -68,7 +84,7 @@ while IFS= read -r hit; do
   else
     failure "${rel}:${lineno}: pip install without --require-hashes"
   fi
-done < <(grep -EnH 'pip3?[[:space:]]+install' "${REPO_ROOT}"/.github/workflows/*.yml || true)
+done < <(for wf in "${workflow_files[@]}"; do join_continuations "$wf"; done | grep -E 'pip3?[[:space:]]+install' || true)
 
 # --- Requirements files must hash every requirement ------------------------
 mapfile -t reqfiles < <(find "${REPO_ROOT}" -type f -name 'requirements*.txt' \
