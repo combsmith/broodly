@@ -79,7 +79,9 @@ while IFS= read -r hit; do
   rel="${file#"${REPO_ROOT}/"}"
   # Ignore YAML comment lines that merely mention pip.
   [[ "$line" =~ ^[[:space:]]*# ]] && continue
-  if [[ "$line" == *"--require-hashes"* ]]; then
+  # Strip shell comments (everything after #) before checking for --require-hashes.
+  active_line="${line%%#*}"
+  if [[ "$active_line" == *"--require-hashes"* ]]; then
     pass "${rel}:${lineno}: pip install uses --require-hashes"
   else
     failure "${rel}:${lineno}: pip install without --require-hashes"
