@@ -77,3 +77,24 @@ updates:
     labels:
       - "security"
       - "dependencies"
+
+  # Base images are pinned by digest (Scorecard Pinned-Dependencies, #395);
+  # Dependabot refreshes the digest so pins don't go stale.
+  - package-ecosystem: "docker"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "security"
+      - "dependencies"
+
+  # Hash-pinned CI test requirements (tests/scripts/requirements.txt).
+  - package-ecosystem: "pip"
+    directory: "/tests/scripts"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "security"
+      - "dependencies"
