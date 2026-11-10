@@ -66,6 +66,28 @@ join_continuations() {
   ' "$1"
 }
 
+# Strip a trailing shell comment: a '#' starts a comment only when it is
+# unquoted, unescaped, and at the start of a word. '#' inside '...' or "..."
+# (e.g. echo "#395") is preserved.
+strip_shell_comment() {
+  local s="$1" out="" c prev=" " quote="" i
+  for ((i = 0; i < ${#s}; i++)); do
+    c="${s:i:1}"
+    if [[ "$prev" == "\\" && "$quote" != "'" ]]; then
+      out+="$c"; prev="x"; continue
+    fi
+    if [[ -n "$quote" ]]; then
+      [[ "$c" == "$quote" ]] && quote=""
+    elif [[ "$c" == "'" || "$c" == '"' ]]; then
+      quote="$c"
+    elif [[ "$c" == "#" && ( -z "$prev" || "$prev" =~ [[:space:]] ) ]]; then
+      break
+    fi
+    out+="$c"; prev="$c"
+  done
+  printf '%s' "$out"
+}
+
 workflow_files=()
 for wf in "${REPO_ROOT}"/.github/workflows/*.yml "${REPO_ROOT}"/.github/workflows/*.yaml; do
   [[ -f "$wf" ]] && workflow_files+=("$wf")
@@ -79,8 +101,8 @@ while IFS= read -r hit; do
   rel="${file#"${REPO_ROOT}/"}"
   # Ignore YAML comment lines that merely mention pip.
   [[ "$line" =~ ^[[:space:]]*# ]] && continue
-  # Strip shell comments (everything after #) before checking for --require-hashes.
-  active_line="${line%%#*}"
+  # Strip real shell comments (unquoted '#') before checking for --require-hashes.
+  active_line="$(strip_shell_comment "$line")"
   if [[ "$active_line" == *"--require-hashes"* ]]; then
     pass "${rel}:${lineno}: pip install uses --require-hashes"
   else
