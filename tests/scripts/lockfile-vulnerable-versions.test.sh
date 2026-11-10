@@ -28,8 +28,11 @@ pass_count=0
 ok() { echo "ok - $1"; pass_count=$((pass_count + 1)); }
 not_ok() { echo "not ok - $1"; fail=1; }
 
-# version_lt <a> <b> — true when semver a < b (prerelease suffixes ignored).
+# version_lt <a> <b> — true when semver a < b. A prerelease of a stable version
+# (e.g. 4.6.6-rc.1) sorts below that stable version per semver precedence;
+# otherwise prerelease suffixes are ignored.
 version_lt() {
+  [[ "$2" != *-* && "$1" == "$2"-* ]] && return 0
   local a="${1%%-*}" b="${2%%-*}"
   [[ "$a" != "$b" ]] && [[ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | head -n1)" == "$a" ]]
 }
@@ -104,6 +107,9 @@ EOF
 version_lt "4.6.6" "4.6.6" \
   && not_ok "comparator treats equal versions as lower" \
   || ok "comparator accepts the exact fixed version"
+version_lt "4.6.6-rc.1" "4.6.6" \
+  && ok "comparator treats a prerelease of the minimum as lower" \
+  || not_ok "comparator accepted 4.6.6-rc.1 as satisfying 4.6.6"
 version_lt "0.83.10" "0.83.8" \
   && not_ok "comparator sorts lexically instead of by semver" \
   || ok "comparator orders 0.83.10 above 0.83.8"
