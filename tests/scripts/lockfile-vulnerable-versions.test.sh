@@ -170,8 +170,17 @@ if [[ "$fail" -eq 0 ]]; then
     not_ok "lockfile resolves vulnerable zod: ${bad}"
   fi
 
+  ignore_re() { printf '^[[:space:]]*-[[:space:]]*['"'"'"]?%s['"'"'"]?[[:space:]]*(#.*)?$' "$1"; }
+  for sample in "  - GHSA-test-aaaa-bbbb" "  - 'GHSA-test-aaaa-bbbb'" "  - \"GHSA-test-aaaa-bbbb\" # why"; do
+    if printf '%s\n' "$sample" | grep -qE "$(ignore_re GHSA-test-aaaa-bbbb)"; then
+      ok "ignore pattern matches: ${sample}"
+    else
+      not_ok "ignore pattern failed to match: ${sample}"
+    fi
+  done
+
   for ghsa in GHSA-5p2g-fcmc-qvqq GHSA-w3rx-r6r6-pgpr GHSA-mrhx-c7xc-m3w5; do
-    if grep -qE "^[[:space:]]*-[[:space:]]*(['\"])?${ghsa}\1[[:space:]]*(#.*)?$" "$WORKSPACE"; then
+    if grep -qE "$(ignore_re "$ghsa")" "$WORKSPACE"; then
       not_ok "pnpm-workspace.yaml still ignores fixed advisory ${ghsa}"
     else
       ok "no stale audit ignore for ${ghsa}"
