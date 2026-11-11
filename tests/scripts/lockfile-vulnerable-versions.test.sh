@@ -34,7 +34,21 @@ not_ok() { echo "not ok - $1"; fail=1; }
 version_lt() {
   [[ "$2" != *-* && "$1" == "$2"-* ]] && return 0
   local a="${1%%-*}" b="${2%%-*}"
-  [[ "$a" != "$b" ]] && [[ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | head -n1)" == "$a" ]]
+  [[ "$a" == "$b" ]] && return 1
+  # Pure-bash numeric comparison (BSD sort on macOS lacks -V).
+  local IFS=.
+  local -a i=( $a ) j=( $b )
+  local k ii jj
+  for ((k = 0; k < ${#i[@]} || k < ${#j[@]}; k++)); do
+    ii=${i[k]:-0}
+    jj=${j[k]:-0}
+    if (( 10#$ii < 10#$jj )); then
+      return 0
+    elif (( 10#$ii > 10#$jj )); then
+      return 1
+    fi
+  done
+  return 1
 }
 
 # resolved_versions <lockfile> <name-regex>
