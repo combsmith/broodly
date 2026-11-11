@@ -185,7 +185,8 @@ jobs:
         # — so the mirror in scripts/apply-rulesets.sh cannot silently drift.
         run: bats tests/integration/
       - name: Install PyYAML for workflow integrity test
-        run: python3 -m pip install --disable-pip-version-check --no-cache-dir 'PyYAML==6.0.2'
+        # Hash-pinned (Scorecard Pinned-Dependencies, #395); see tests/scripts/requirements.txt.
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir --require-hashes -r tests/scripts/requirements.txt
       - name: Workflow integrity test
         run: bash tests/scripts/workflow-integrity.test.sh
       - name: golangci-lint / go.mod toolchain compatibility test
@@ -206,6 +207,10 @@ jobs:
         run: bash tests/scripts/dependabot-automerge-contract.test.sh
       - name: Sonar infra hardening test
         run: bash tests/scripts/sonar-infra-hardening.test.sh
+      - name: Pinned dependencies guard
+        # Dockerfile base images digest-pinned, pip installs hash-pinned
+        # (OpenSSF Scorecard Pinned-Dependencies, #395).
+        run: bash tests/scripts/pinned-dependencies.test.sh
 
   secret-scan:
     name: Secret scan (gitleaks)
