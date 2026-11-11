@@ -129,7 +129,11 @@ for req in "${reqfiles[@]}"; do
     # Skip pip option lines (-r/-c includes, --index-url, ...): not requirements.
     [[ "$entry" =~ ^[[:space:]]*- ]] && continue
     name="${entry%%[ =<>!~;]*}"
-    if [[ "$entry" =~ ==[^[:space:]]+ && "$entry" =~ --hash=sha256:[0-9a-fA-F]{64}([[:space:]]|$) ]]; then
+    # Only the package specifier (before any ';' environment marker or
+    # ' --' option) may supply the '==' pin; a marker's '==' must not count.
+    spec="${entry%%;*}"
+    spec="${spec%% --*}"
+    if [[ "$spec" =~ ^[[:space:]]*[^[:space:]=\<\>!~\;]+(\[[^]]*\])?[[:space:]]*==[[:space:]]*[^[:space:]=]+[[:space:]]*$ && "$entry" =~ --hash=sha256:[0-9a-fA-F]{64}([[:space:]]|$) ]]; then
       pass "${rel}: '${name}' pinned by version and hash"
     else
       failure "${rel}: '${name}' must be pinned with == and --hash=sha256:"
