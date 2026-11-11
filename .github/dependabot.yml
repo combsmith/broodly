@@ -38,6 +38,12 @@ updates:
       - dependency-name: "handlebars"
       - dependency-name: "js-yaml"
       - dependency-name: "lodash"
+      # metro family and zod: ignore only the vulnerable ranges (< 0.83.8 for
+      # metro*, < 4.6.6 for zod) that the pnpm overrides replace. Unlike the
+      # glob/minimatch entries above, these ranges block the vulnerable
+      # releases themselves, so newer patched releases stay eligible for
+      # security updates. The overrides-sync test checks package names only,
+      # not these version ranges.
       - dependency-name: "metro"
         versions:
           - ">= 0.83.0, < 0.83.8"

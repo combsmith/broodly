@@ -6,7 +6,7 @@ Field-first beekeeping decision-support app. Mobile-first on iOS, Android, and w
 
 ## Prerequisites
 
-- **Node.js** >= 20.x (LTS)
+- **Node.js** >= 20.19.4 (LTS)
 - **pnpm** >= 9.x
 - **Go** >= 1.24
 - **Expo CLI** (`npx expo`)
