@@ -54,6 +54,12 @@ overrides:
   # all of these exist in zod 4. Drop once @expo/cli migrates to zod 4.
   'zod@<4.6.6': ^4.6.6
 
+# braces <= 3.0.3 has a high-severity DoS vulnerability through deeply nested patterns.
+# The fix (>= 3.0.4) has not been published to npm yet. This is a transitive dependency
+# through @expo/html-elements > react-native > metro > micromatch > braces.
+# Suppressed until braces 3.0.4+ is released.
+# Re-evaluate when: https://github.com/micromatch/braces/releases shows >= 3.0.4
+#
 # deepmerge 4.2.0-4.3.1 has a low-severity prototype-poisoning advisory
 # (GHSA-gcqx-w48m-w2h4). No patched version is on npm (4.3.1 is the latest),
 # so neither an upgrade nor an override can fix it. It reaches us through
@@ -64,4 +70,5 @@ overrides:
 # Re-evaluate when: `npm view deepmerge version` shows >= 4.3.2
 audit:
   ignore:
+    - GHSA-vfj7-8cjw-p6xm
     - GHSA-gcqx-w48m-w2h4
