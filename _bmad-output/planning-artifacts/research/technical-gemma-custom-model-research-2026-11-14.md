@@ -57,6 +57,9 @@ Silicon), Ollama, LM Studio, LiteRT-LM, Vertex AI, Colab.
    "Hive 3, capped queen cells on frame 4, moving on" into structured inspection data and
    navigation commands, with no signal, low latency and no per-call cost. Beeyards often have poor
    coverage, so this directly supports the zero-tap experience.
+   *MVP caveat:* the current MVP has no offline writes (mutations require connectivity), so an
+   on-device parser cannot yet complete a live inspection offline. A parser-only pilot validates
+   parsing accuracy, not the end-to-end zero-tap workflow; that needs the offline-write decision.
 2. **Domain vocabulary in speech.** Supersedure, nuc, Varroa, OAV, brood pattern — under wind,
    bee noise and a veil, across regional accents.
 3. **Cost/latency at high volume.** Self-hosting beats Gemini calls only at large scale (see
