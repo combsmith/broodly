@@ -57,7 +57,7 @@ Silicon), Ollama, LM Studio, LiteRT-LM, Vertex AI, Colab.
    "Hive 3, capped queen cells on frame 4, moving on" into structured inspection data and
    navigation commands, with no signal, low latency and no per-call cost. Beeyards often have poor
    coverage, so this directly supports the zero-tap experience.
-   *MVP caveat:* the current MVP has no offline writes (mutations require connectivity), so an
+   _MVP caveat:_ the current MVP has no offline writes (mutations require connectivity), so an
    on-device parser cannot yet complete a live inspection offline. A parser-only pilot validates
    parsing accuracy, not the end-to-end zero-tap workflow; that needs the offline-write decision.
 2. **Domain vocabulary in speech.** Supersedure, nuc, Varroa, OAV, brood pattern — under wind,
@@ -131,8 +131,10 @@ pricing page before budgeting.
 | Serving in cloud, always on                   | L4 ~$500–700/month; H100 several thousand/month; scale-to-zero adds cold start              |
 | Ongoing                                       | Retraining per season/release; keeping the eval set current                                 |
 
-For comparison, `architecture.md` budgets Gemini at $5–15/month. Cloud self-hosting will not pay
-off until usage is very large; on-device is where Gemma pays for itself.
+For comparison, `architecture.md` budgets Vertex AI at about $18–40/month in total: Gemini
+recommendations $5–15, vision $3–5 and speech-to-text $10–20 (~100 hours of audio). Speech-to-text is
+the closest comparison for the voice parser. Cloud self-hosting will not pay off until usage is very
+large; on-device is where Gemma pays for itself.
 
 ### Hardware note — Apple Silicon (Mac mini)
 
@@ -166,8 +168,10 @@ Winter suits data and evaluation work; field validation needs active colonies.
 **Go/no-go before the on-device pilot (Feb–Apr):** confirm a supported route from the trained
 adapter to a LiteRT-LM bundle for the chosen model, with tool versions recorded. Re-run the
 held-out eval (voice input and structured output) before and after export, and confirm the
-exported bundle keeps audio input. If it does not, fall back to server-side inference or a
-different model size. The outcome decides "Where it runs".
+exported bundle keeps audio input. If it does not, evaluate a separate on-device speech recognizer
+feeding the text-only adapter as one complete audio → JSON pipeline, before and after export. If
+that also fails, fall back to server-side inference or a different model size. The outcome decides
+"Where it runs".
 
 ## Sources
 
