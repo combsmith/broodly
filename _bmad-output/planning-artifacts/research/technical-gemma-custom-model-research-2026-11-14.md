@@ -138,6 +138,9 @@ Gemma 4 has day-one MLX support, and `mlx-lm` supports LoRA/QLoRA fine-tuning. R
   longer sequences.
 - **26B MoE / 31B QLoRA (4-bit):** realistically needs ~48–64 GB+ and will be slow; rent a cloud
   H100 for these instead.
+- `mlx-lm` loads only Gemma 4's language model and drops the audio weights, so MLX LoRA covers
+  the text side (transcript → JSON). Speech recognition needs a separate audio-capable stack and
+  evaluation.
 - Local hardware is ideal for the eval harness, data tooling and the E4B pilot; burst to cloud only
   for the large models.
 

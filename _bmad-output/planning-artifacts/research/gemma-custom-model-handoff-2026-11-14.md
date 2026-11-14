@@ -37,9 +37,14 @@
    mini) against the eval set.
 4. **Assemble training data:** curated sources + teacher-generated examples with expert review
    (check teacher model terms first).
-5. **LoRA pilot on the Mac mini** with `mlx-lm` on Gemma 4 E4B; compare to baseline.
-6. If it wins, plan LiteRT-LM on-device integration and a spring field test.
-7. When the direction is set, follow BMAD: update PRD/architecture, then epics and stories.
+5. **LoRA pilot on the Mac mini** with `mlx-lm` on Gemma 4 E4B, scoped to **text parsing**
+   (transcript → inspection JSON); compare to baseline. `mlx-lm` loads only the language model and
+   drops Gemma 4's audio weights, so it cannot test speech recognition.
+6. **Evaluate offline speech recognition separately** (beekeeping vocabulary under wind, bee noise
+   and accents), using an audio-capable stack, before treating the pilot as evidence for the full
+   offline voice pipeline.
+7. If both win, plan LiteRT-LM on-device integration and a spring field test.
+8. When the direction is set, follow BMAD: update PRD/architecture, then epics and stories.
 
 ## Setting up the Mac mini
 
@@ -54,7 +59,7 @@ python3 -m venv ~/venvs/gemma && source ~/venvs/gemma/bin/activate
 pip install mlx-lm huggingface_hub
 
 # 3. Gemma weights require accepting the licence on Hugging Face, then:
-huggingface-cli login
+hf auth login
 ```
 
 Keep model weights, datasets and adapters out of git (large, and datasets may contain user data).
