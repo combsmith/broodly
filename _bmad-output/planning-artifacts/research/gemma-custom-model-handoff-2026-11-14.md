@@ -1,8 +1,8 @@
 # Handoff: Custom Gemma Beekeeping Model → Mac mini
 
 **Date:** 2026-11-14
-**Branch:** `claude/gemma-beekeeping-model-training-liv77d` (in both `combsmith/broodly` and
-`combsmith/broodminder-data`)
+**Branch:** `claude/gemma-beekeeping-model-training-liv77d` in `combsmith/broodly`
+(`combsmith/broodminder-data` has no changes; use its default branch)
 **From:** cloud Claude Code session (exploration only)
 **To:** Mac mini (local Claude Code + Apple Silicon for MLX experiments)
 
@@ -44,11 +44,10 @@
 ## Setting up the Mac mini
 
 ```bash
-# 1. Get both repos on the handoff branch
+# 1. Get both repos (broodly on the handoff branch)
 git clone https://github.com/combsmith/broodly.git
 git clone https://github.com/combsmith/broodminder-data.git
 (cd broodly && git checkout claude/gemma-beekeeping-model-training-liv77d)
-(cd broodminder-data && git checkout claude/gemma-beekeeping-model-training-liv77d)
 
 # 2. Python env for local model work (keep it outside the repos)
 python3 -m venv ~/venvs/gemma && source ~/venvs/gemma/bin/activate
