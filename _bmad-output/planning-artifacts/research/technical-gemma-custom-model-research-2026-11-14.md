@@ -114,17 +114,17 @@ cleanest); a Vertex-hosted Gemma endpoint instead of self-hosting on Cloud Run.
 Rough estimates. Third-party figures conflicted; verify against Google's official Vertex AI
 pricing page before budgeting.
 
-| Item                                          | Estimate                                                                       |
-| --------------------------------------------- | ------------------------------------------------------------------------------ |
-| Expert data review (usually the largest cost) | ~35–50 hours per 1,000 examples at 2–3 min each                                |
-| Teacher-model synthetic generation            | ~$10–100                                                                       |
-| LoRA on E2B/E4B — local Apple Silicon (MLX)   | ~$0 marginal; hours per run (see hardware note)                                |
-| LoRA on E2B/E4B — Colab Pro or one L4/A100    | ~$5–50 per run                                                                 |
-| QLoRA on 26B/31B — one H100 (~$3–12/hr)       | ~$50–250 per run; plan 5–15 runs (~$250–3,000)                                 |
+| Item                                          | Estimate                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Expert data review (usually the largest cost) | ~35–50 hours per 1,000 examples at 2–3 min each                                             |
+| Teacher-model synthetic generation            | ~$10–100                                                                                    |
+| LoRA on E2B/E4B — local Apple Silicon (MLX)   | ~$0 marginal; hours per run (see hardware note)                                             |
+| LoRA on E2B/E4B — Colab Pro or one L4/A100    | ~$5–50 per run                                                                              |
+| QLoRA on 26B/31B — one H100 (~$3–12/hr)       | ~$50–250 per run; plan 5–15 runs (~$250–3,750)                                              |
 | Vertex managed Gemma tuning                   | Per training token; one source lists ~$6.83 per million tokens for Gemma 3 27B (unverified) |
-| Serving on-device                             | ~$0 per call; costs are app size and device testing                            |
-| Serving in cloud, always on                   | L4 ~$500–700/month; H100 several thousand/month; scale-to-zero adds cold start |
-| Ongoing                                       | Retraining per season/release; keeping the eval set current                    |
+| Serving on-device                             | ~$0 per call; costs are app size and device testing                                         |
+| Serving in cloud, always on                   | L4 ~$500–700/month; H100 several thousand/month; scale-to-zero adds cold start              |
+| Ongoing                                       | Retraining per season/release; keeping the eval set current                                 |
 
 For comparison, `architecture.md` budgets Gemini at $5–15/month. Cloud self-hosting will not pay
 off until usage is very large; on-device is where Gemma pays for itself.
