@@ -121,7 +121,7 @@ pricing page before budgeting.
 | LoRA on E2B/E4B — local Apple Silicon (MLX)   | ~$0 marginal; hours per run (see hardware note)                                |
 | LoRA on E2B/E4B — Colab Pro or one L4/A100    | ~$5–50 per run                                                                 |
 | QLoRA on 26B/31B — one H100 (~$3–12/hr)       | ~$50–250 per run; plan 5–15 runs (~$250–3,000)                                 |
-| Vertex managed Gemma tuning                   | Per training token; one source lists ~$6.83/M for Gemma 3 27B (unverified)     |
+| Vertex managed Gemma tuning                   | Per training token; one source lists ~$6.83 per million tokens for Gemma 3 27B (unverified) |
 | Serving on-device                             | ~$0 per call; costs are app size and device testing                            |
 | Serving in cloud, always on                   | L4 ~$500–700/month; H100 several thousand/month; scale-to-zero adds cold start |
 | Ongoing                                       | Retraining per season/release; keeping the eval set current                    |

@@ -47,7 +47,7 @@
 # 1. Get both repos (broodly on the handoff branch)
 git clone https://github.com/combsmith/broodly.git
 git clone https://github.com/combsmith/broodminder-data.git
-(cd broodly && git checkout claude/gemma-beekeeping-model-training-liv77d)
+git -C broodly checkout claude/gemma-beekeeping-model-training-liv77d
 
 # 2. Python env for local model work (keep it outside the repos)
 python3 -m venv ~/venvs/gemma && source ~/venvs/gemma/bin/activate
