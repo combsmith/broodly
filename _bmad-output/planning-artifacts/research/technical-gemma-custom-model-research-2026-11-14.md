@@ -39,13 +39,14 @@ beeyard differentiator.
 
 ## Gemma 4 at a glance
 
-Released 2026-04-02 under Apache 2.0. Four sizes:
+Apache 2.0. Four sizes launched on 2026-04-02; a 12B model followed on 2026-06-03:
 
-| Model     | Notes                                                                         |
-| --------- | ----------------------------------------------------------------------------- |
-| E2B, E4B  | Edge models, 128K context, **native audio input**, run on phones (LiteRT-LM)  |
-| 26B MoE   | ~3.8B parameters active per token; fast server-side model, up to 256K context |
-| 31B Dense | Highest quality; bf16 weights fit one 80 GB H100                              |
+| Model     | Notes                                                                                  |
+| --------- | -------------------------------------------------------------------------------------- |
+| E2B, E4B  | Edge models, 128K context, **native audio input**, run on phones (LiteRT-LM)           |
+| 12B       | Mid-size, **native audio input** (encoder-free); Google says it runs on a 16 GB laptop |
+| 26B MoE   | ~3.8B parameters active per token; fast server-side model, up to 256K context          |
+| 31B Dense | Highest quality; bf16 weights fit one 80 GB H100                                       |
 
 Day-one tooling: Hugging Face Transformers/TRL, Unsloth, vLLM, llama.cpp, **MLX** (Apple
 Silicon), Ollama, LM Studio, LiteRT-LM, Vertex AI, Colab.
@@ -84,7 +85,8 @@ cleanest); a Vertex-hosted Gemma endpoint instead of self-hosting on Cloud Run.
 1. **First job.** Suggested: offline voice → structured inspection parser.
 2. **Where it runs.** Phone (LiteRT-LM, ~1–3 GB added to the app), Cloud Run GPU, or Vertex
    endpoint. This largely determines model size and running cost.
-3. **Model size.** E2B/E4B on-device; 26B MoE or 31B server-side.
+3. **Model size.** E2B/E4B on-device; 12B as a mid-size option with audio (local Mac or small
+   server GPU); 26B MoE or 31B server-side.
 4. **What "good" means.** Measurable targets on a held-out set: field-extraction accuracy, command
    recognition rate, unsafe-advice rate.
 5. **Data rights.** Extension publication licences; user consent for voice/inspection data; the
@@ -146,7 +148,8 @@ Gemma 4 has day-one MLX support, and `mlx-lm` supports LoRA/QLoRA fine-tuning. R
 
 ## Timeline
 
-About 2–3 months part-time, aligned to the bee season (Southeast US):
+About 2–3 months of part-time work, spread across Nov–Apr to align with the bee season (Southeast
+US):
 
 | When    | Phase         | Work                                                                   |
 | ------- | ------------- | ---------------------------------------------------------------------- |
@@ -157,9 +160,16 @@ About 2–3 months part-time, aligned to the bee season (Southeast US):
 
 Winter suits data and evaluation work; field validation needs active colonies.
 
+**Go/no-go before the on-device pilot (Feb–Apr):** confirm a supported route from the trained
+adapter to a LiteRT-LM bundle for the chosen model, with tool versions recorded. Re-run the
+held-out eval (voice input and structured output) before and after export, and confirm the
+exported bundle keeps audio input. If it does not, fall back to server-side inference or a
+different model size. The outcome decides "Where it runs".
+
 ## Sources
 
 - [Gemma 4: Byte for byte, the most capable open models (Google)](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/)
+- [Introducing Gemma 4 12B (Google)](https://blog.google/innovation-and-ai/technology/developers-tools/introducing-gemma-4-12b/)
 - [Announcing Gemma 3 on Vertex AI](https://cloud.google.com/blog/products/ai-machine-learning/announcing-gemma-3-on-vertex-ai)
 - [Vertex AI fine-tuning pricing reproduction (developersdigest)](https://www.developersdigest.tech/models/fine-tuning/google)
 - [Vertex AI Pricing 2026 guide (nOps)](https://www.nops.io/blog/vertex-ai-pricing/)
