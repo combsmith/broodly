@@ -206,6 +206,10 @@ jobs:
         run: bash tests/scripts/dependabot-automerge-contract.test.sh
       - name: Sonar infra hardening test
         run: bash tests/scripts/sonar-infra-hardening.test.sh
+      - name: Lockfile vulnerable-version guard
+        # Keeps the OSV/Scorecard remediations for image-size (via metro) and
+        # zod pinned in pnpm-lock.yaml (Scorecard Vulnerabilities, #447).
+        run: bash tests/scripts/lockfile-vulnerable-versions.test.sh
 
   secret-scan:
     name: Secret scan (gitleaks)
