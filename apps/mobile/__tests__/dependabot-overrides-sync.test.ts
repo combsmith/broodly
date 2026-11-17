@@ -185,7 +185,7 @@ function parseOverrideFloor(name: string): string | undefined {
 function parseLockfileVersions(name: string): string[] {
   const text = readFileSync(resolve(REPO_ROOT, 'pnpm-lock.yaml'), 'utf8');
   const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-  const re = new RegExp(`^[ \\t]+['"]?${escaped}@(\\d+\\.\\d+\\.\\d+)['"]?:`, 'gm');
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}@(\\d+\\.\\d+\\.\\d+)[^'"\\n]*['"]?:`, 'gm');
   return [...new Set([...text.matchAll(re)].map((m) => m[1]))];
 }
 
@@ -211,7 +211,9 @@ describe('Override-remediated dependencies resolve to patched versions', () => {
     it(`${name} override floor is at or above ${patched}`, () => {
       const floor = parseOverrideFloor(name);
       expect(floor).toBeDefined();
-      expect(semverGte(floor as string, patched)).toBe(true);
+      if (floor !== undefined) {
+        expect(semverGte(floor, patched)).toBe(true);
+      }
     });
 
     it(`${name} lockfile resolves only versions at or above ${patched}`, () => {
