@@ -187,7 +187,7 @@ function parseOverrideFloor(name: string): string | undefined {
 function parseLockfileVersions(name: string): string[] {
   const text = readFileSync(resolve(REPO_ROOT, 'pnpm-lock.yaml'), 'utf8');
   const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-  const re = new RegExp(`^[ \\t]+['"]?${escaped}@(\\d+\\.\\d+\\.\\d+)[^'"\\n]*['"]?:`, 'gm');
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}@(\\d+\\.\\d+\\.\\d+)(?:\\([^'"\\n]*\\))*['"]?:`, 'gm');
   return [...new Set([...text.matchAll(re)].map((m) => m[1]))];
 }
 
