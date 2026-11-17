@@ -41,6 +41,6 @@ jobs:
     if: >-
       github.event.check_run.conclusion == 'failure' &&
       !startsWith(github.event.check_run.name, 'CI Failure Analyst')
-    uses: combsmith/.github-private/.github/workflows/ci-failure-analyst-reusable.yml@26743746573dcc57d78ab07d02e7233b11ab2105 # main
+    uses: combsmith/.github-private/.github/workflows/ci-failure-analyst-reusable.yml@1d27dd0ed7d50cc5c16fb80e9c9edb4fcbd5574c # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
