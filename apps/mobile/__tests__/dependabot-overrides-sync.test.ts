@@ -175,12 +175,20 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
 
 /** Read the floor of an unscoped override such as `node-forge: '>=1.4.3'`. */
 function parseOverrideFloor(name: string): string | undefined {
-  const text = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8');
+  const lines = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8').split('\n');
+  const start = lines.findIndex((line) => /^overrides:\s*$/.test(line));
+  if (start === -1) return undefined;
   const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-  const re = new RegExp(`^[ \\t]+['"]?${escaped}['"]?:[ \\t]*['"]?>=\\s*(\\d+\\.\\d+\\.\\d+)['"]?[ \\t]*(?:#.*)?$`, 'm');
   // Anchored to end of value: prerelease/build suffixes (e.g. "1.4.3-rc.1") do not
   // match, so the floor is reported as undefined instead of being truncated to 1.4.3.
-  return re.exec(text)?.[1];
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}['"]?:[ \\t]*['"]?>=\\s*(\\d+\\.\\d+\\.\\d+)['"]?[ \\t]*(?:#.*)?$`);
+  // Scan only the overrides: block; it ends at the next column-zero key.
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/.test(line) && !line.startsWith('#')) break;
+    const match = re.exec(line);
+    if (match) return match[1];
+  }
+  return undefined;
 }
 
 /** Collect every resolved version of `name` recorded in pnpm-lock.yaml. */
