@@ -172,3 +172,52 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
     }
   });
 });
+
+/** Read the floor of an unscoped override such as `node-forge: '>=1.4.3'`. */
+function parseOverrideFloor(name: string): string | undefined {
+  const text = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8');
+  const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}['"]?:[ \\t]*['"]?>=\\s*(\\d+\\.\\d+\\.\\d+)`, 'm');
+  return re.exec(text)?.[1];
+}
+
+/** Collect every resolved version of `name` recorded in pnpm-lock.yaml. */
+function parseLockfileVersions(name: string): string[] {
+  const text = readFileSync(resolve(REPO_ROOT, 'pnpm-lock.yaml'), 'utf8');
+  const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}@(\\d+\\.\\d+\\.\\d+)['"]?:`, 'gm');
+  return [...new Set([...text.matchAll(re)].map((m) => m[1]))];
+}
+
+function semverGte(a: string, b: string): boolean {
+  const [x, y] = [a, b].map((v) => v.split('.').map((n) => parseInt(n, 10)));
+  for (let i = 0; i < 3; i++) {
+    if (x[i] !== y[i]) return x[i] > y[i];
+  }
+  return true;
+}
+
+describe('Override-remediated dependencies resolve to patched versions', () => {
+  // These packages are in Dependabot's ignore list, so an open advisory whose
+  // patch sits above the override floor makes the Dependabot security job fail
+  // with `all_versions_ignored` (issue #659). The override floor and the
+  // lockfile must both clear the first patched version.
+  const patchedFloors: Record<string, string> = {
+    // GHSA-6cv4-p8m7-4r25, GHSA-w4xr-hqv8-ch44, GHSA-6889-vf6x-f3g5, GHSA-j8rw-jp99-435v
+    'node-forge': '1.4.3',
+  };
+
+  for (const [name, patched] of Object.entries(patchedFloors)) {
+    it(`${name} override floor is at or above ${patched}`, () => {
+      const floor = parseOverrideFloor(name);
+      expect(floor).toBeDefined();
+      expect(semverGte(floor as string, patched)).toBe(true);
+    });
+
+    it(`${name} lockfile resolves only versions at or above ${patched}`, () => {
+      const versions = parseLockfileVersions(name);
+      expect(versions.length).toBeGreaterThan(0);
+      expect(versions.filter((v) => !semverGte(v, patched))).toEqual([]);
+    });
+  }
+});
