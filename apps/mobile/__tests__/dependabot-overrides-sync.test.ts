@@ -195,16 +195,17 @@ function parseOverrideFloor(name: string): string | undefined {
 function parseLockfileVersions(name: string): string[] {
   const text = readFileSync(resolve(REPO_ROOT, 'pnpm-lock.yaml'), 'utf8');
   const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-  const re = new RegExp(`^[ \\t]+['"]?${escaped}@(\\d+\\.\\d+\\.\\d+)(?:\\([^'"\\n]*\\))*['"]?:`, 'gm');
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}@(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)(?:\\([^'"\\n]*\\))*['"]?:`, 'gm');
   return [...new Set([...text.matchAll(re)].map((m) => m[1]))];
 }
 
 function semverGte(a: string, b: string): boolean {
-  const [x, y] = [a, b].map((v) => v.split('.').map((n) => parseInt(n, 10)));
+  const [x, y] = [a, b].map((v) => v.split('-')[0].split('.').map((n) => parseInt(n, 10)));
   for (let i = 0; i < 3; i++) {
     if (x[i] !== y[i]) return x[i] > y[i];
   }
-  return true;
+  // Same core version: a prerelease (e.g. 1.4.3-rc.1) sorts below the release.
+  return !(a.includes('-') && !b.includes('-'));
 }
 
 describe('Override-remediated dependencies resolve to patched versions', () => {
