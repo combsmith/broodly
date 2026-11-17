@@ -172,3 +172,65 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
     }
   });
 });
+
+/** Read the floor of an unscoped override such as `node-forge: '>=1.4.3'`. */
+function parseOverrideFloor(name: string): string | undefined {
+  const lines: string[] = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8').split('\n');
+  const start = lines.findIndex((line) => /^overrides:\s*$/.test(line));
+  if (start === -1) return undefined;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  // Anchored to end of value: prerelease/build suffixes (e.g. "1.4.3-rc.1") do not
+  // match, so the floor is reported as undefined instead of being truncated to 1.4.3.
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}['"]?:[ \\t]*['"]?>=\\s*(\\d+\\.\\d+\\.\\d+)['"]?[ \\t]*(?:#.*)?$`);
+  // Scan only the overrides: block; it ends at the next column-zero key.
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/.test(line) && !line.startsWith('#')) break;
+    const match = re.exec(line);
+    if (match) return match[1];
+  }
+  return undefined;
+}
+
+/** Collect every resolved version of `name` recorded in pnpm-lock.yaml. */
+function parseLockfileVersions(name: string): string[] {
+  const text = readFileSync(resolve(REPO_ROOT, 'pnpm-lock.yaml'), 'utf8');
+  const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}@(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)(?:\\([^'"\\n]*\\))*['"]?:`, 'gm');
+  return [...new Set([...text.matchAll(re)].map((m) => m[1]))];
+}
+
+function semverGte(a: string, b: string): boolean {
+  const [x, y] = [a, b].map((v) => v.split('-')[0].split('.').map((n) => parseInt(n, 10)));
+  for (let i = 0; i < 3; i++) {
+    if (x[i] !== y[i]) return x[i] > y[i];
+  }
+  // Same core version: a prerelease (e.g. 1.4.3-rc.1) sorts below the release.
+  return !(a.includes('-') && !b.includes('-'));
+}
+
+describe('Override-remediated dependencies resolve to patched versions', () => {
+  // These packages are in Dependabot's ignore list, so an open advisory whose
+  // patch sits above the override floor makes the Dependabot security job fail
+  // with `all_versions_ignored` (issue #659). The override floor and the
+  // lockfile must both clear the first patched version.
+  const patchedFloors: Record<string, string> = {
+    // GHSA-6cv4-p8m7-4r25, GHSA-w4xr-hqv8-ch44, GHSA-6889-vf6x-f3g5, GHSA-j8rw-jp99-435v
+    'node-forge': '1.4.3',
+  };
+
+  for (const [name, patched] of Object.entries(patchedFloors)) {
+    it(`${name} override floor is at or above ${patched}`, () => {
+      const floor = parseOverrideFloor(name);
+      expect(floor).toBeDefined();
+      if (floor !== undefined) {
+        expect(semverGte(floor, patched)).toBe(true);
+      }
+    });
+
+    it(`${name} lockfile resolves only versions at or above ${patched}`, () => {
+      const versions = parseLockfileVersions(name);
+      expect(versions.length).toBeGreaterThan(0);
+      expect(versions.filter((v) => !semverGte(v, patched))).toEqual([]);
+    });
+  }
+});
