@@ -175,7 +175,7 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
 
 /** Read the floor of an unscoped override such as `node-forge: '>=1.4.3'`. */
 function parseOverrideFloor(name: string): string | undefined {
-  const lines = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8').split('\n');
+  const lines: string[] = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8').split('\n');
   const start = lines.findIndex((line) => /^overrides:\s*$/.test(line));
   if (start === -1) return undefined;
   const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
