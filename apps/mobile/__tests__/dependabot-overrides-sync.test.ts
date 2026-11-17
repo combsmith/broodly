@@ -177,7 +177,9 @@ describe('Dependabot ignore list stays in sync with pnpm overrides', () => {
 function parseOverrideFloor(name: string): string | undefined {
   const text = readFileSync(resolve(REPO_ROOT, 'pnpm-workspace.yaml'), 'utf8');
   const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-  const re = new RegExp(`^[ \\t]+['"]?${escaped}['"]?:[ \\t]*['"]?>=\\s*(\\d+\\.\\d+\\.\\d+)`, 'm');
+  const re = new RegExp(`^[ \\t]+['"]?${escaped}['"]?:[ \\t]*['"]?>=\\s*(\\d+\\.\\d+\\.\\d+)['"]?[ \\t]*(?:#.*)?$`, 'm');
+  // Anchored to end of value: prerelease/build suffixes (e.g. "1.4.3-rc.1") do not
+  // match, so the floor is reported as undefined instead of being truncated to 1.4.3.
   return re.exec(text)?.[1];
 }
 
