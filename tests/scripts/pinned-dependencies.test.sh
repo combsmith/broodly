@@ -112,16 +112,18 @@ strip_shell_comment() {
 # Split a shell line into simple commands at unquoted ; & && | || (one per
 # output line). '&' inside a redirection (2>&1, &>) is not a separator.
 split_commands() {
-  local s="$1" c prev=" " quote="" i next
+  local s="$1" c prev=" " quote="" ansi=0 i next
   for ((i = 0; i < ${#s}; i++)); do
     c="${s:i:1}"; next="${s:i+1:1}"
-    if [[ "$prev" == "\\" && "$quote" != "'" ]]; then
+    if [[ "$prev" == "\\" && ( "$quote" != "'" || $ansi -eq 1 ) ]]; then
       printf '%s' "$c"; prev="x"; continue
     fi
     if [[ -n "$quote" ]]; then
-      [[ "$c" == "$quote" ]] && quote=""
+      [[ "$c" == "$quote" ]] && { quote=""; ansi=0; }
     elif [[ "$c" == "'" || "$c" == '"' ]]; then
       quote="$c"
+      # $'...' is an ANSI-C string: backslash escapes (including \') apply.
+      [[ "$c" == "'" && "$prev" == '$' ]] && ansi=1
     elif [[ "$c" == ";" || "$c" == "|" ]]; then
       printf '\n'; prev=" "; continue
     elif [[ "$c" == "&" && "$prev" != ">" && "$prev" != "<" && "$next" != ">" ]]; then
@@ -147,14 +149,21 @@ while IFS= read -r hit; do
   # Strip real shell comments (unquoted '#') before checking for --require-hashes.
   active_line="$(strip_shell_comment "$line")"
   # Every simple command that runs `pip install` needs the flag itself.
+  found_pip=0
   while IFS= read -r cmd; do
     [[ "$cmd" =~ pip3?[[:space:]]+install ]] || continue
+    found_pip=1
     if [[ "$cmd" == *"--require-hashes"* ]]; then
       pass "${rel}:${lineno}: pip install uses --require-hashes"
     else
       failure "${rel}:${lineno}: pip install without --require-hashes"
     fi
   done < <(split_commands "$active_line")
+  # The line matched `pip install` but no pip command survived comment
+  # stripping/splitting (e.g. a multi-line string hid it): fail, never skip.
+  if [[ $found_pip -eq 0 ]]; then
+    failure "${rel}:${lineno}: pip install not verifiable (no pip command found after parsing)"
+  fi
 done < <(for wf in ${workflow_files[@]+"${workflow_files[@]}"}; do join_continuations "$wf"; done | grep -E 'pip3?[[:space:]]+install' || true)
 
 # --- Requirements files must hash every requirement ------------------------
