@@ -67,8 +67,24 @@ done
 # line is seen as part of the same command. Both .yml and .yaml are scanned.
 join_continuations() {
   awk -v f="$1" '
+    # Same quote-aware rule as strip_shell_comment: is there an unquoted,
+    # unescaped "#" at the start of a word (or after ; & | ( )?
+    function trailing_comment(s,    i, c, prev, q, n) {
+      prev = " "; q = ""; n = length(s)
+      for (i = 1; i <= n; i++) {
+        c = substr(s, i, 1)
+        if (prev == "\\" && q != "\047") { prev = "x"; continue }
+        if (q != "") { if (c == q) q = "" }
+        else if (c == "\047" || c == "\"") q = c
+        else if (c == "#" && (prev == " " || prev == "\t" || prev == ";" || prev == "&" || prev == "|" || prev == "(")) return 1
+        prev = c
+      }
+      return 0
+    }
     { if (buf == "") start = FNR }
     /^[[:space:]]*#/ { print f ":" FNR ":" buf $0; buf = ""; next }
+    # Bash does not continue a comment with a backslash: do not join.
+    trailing_comment(buf $0) { print f ":" start ":" buf $0; buf = ""; next }
     /\\[[:space:]]*$/ { sub(/\\[[:space:]]*$/, ""); buf = buf $0; next }
     { print f ":" start ":" buf $0; buf = "" }
     END { if (buf != "") print f ":" start ":" buf }
@@ -82,7 +98,7 @@ join_continuations() {
 # scalar is unwrapped first so the YAML quotes are not mistaken for shell
 # quotes (the shell only sees the scalar's content).
 strip_shell_comment() {
-  local s="$1" out="" c prev=" " quote="" ansi=0 i
+  local s="$1" mode="${2:-}" out="" rest="" c prev=" " quote="" ansi=0 i
   # A trailing YAML comment (` # ...`) after the closing quote is dropped.
   local re_sq="^([[:space:]]*(-[[:space:]]+)?run:[[:space:]]+)'(([^']|'')*)'([[:space:]]+#.*)?[[:space:]]*\$"
   local re_dq='^([[:space:]]*(-[[:space:]]+)?run:[[:space:]]+)"(([^"\\]|\\.)*)"([[:space:]]+#.*)?[[:space:]]*$'
@@ -103,11 +119,12 @@ strip_shell_comment() {
       # $'...' is an ANSI-C string: backslash escapes (including \') apply.
       [[ "$c" == "'" && "$prev" == '$' ]] && ansi=1
     elif [[ "$c" == "#" && ( -z "$prev" || "$prev" =~ [[:space:]] || "$prev" == [\;\&\|\(] ) ]]; then
+      rest="${s:i}"
       break
     fi
     out+="$c"; prev="$c"
   done
-  printf '%s' "$out"
+  if [[ "$mode" == "comment" ]]; then printf '%s' "$rest"; else printf '%s' "$out"; fi
 }
 
 # Split a shell line into simple commands at unquoted ; & && | || (one per
@@ -151,8 +168,9 @@ while IFS= read -r hit; do
   lineno="${rest%%:*}"
   line="${rest#*:}"
   rel="${file#"${REPO_ROOT}/"}"
-  # Ignore YAML comment lines that merely mention pip.
-  [[ "$line" =~ ^[[:space:]]*# ]] && continue
+  # Ignore YAML comment lines that merely mention pip, unless the comment
+  # contains a quote (it may sit inside a string opened on an earlier line).
+  [[ "$line" =~ ^[[:space:]]*# && "$line" != *[\'\"]* ]] && continue
   # Ignore step metadata (e.g. `name: Verify pip install`): it is not executed.
   [[ "$line" =~ $yaml_meta_re ]] && continue
   # Strip real shell comments (unquoted '#') before checking for --require-hashes.
@@ -172,8 +190,10 @@ while IFS= read -r hit; do
   done < <(split_commands "$active_line")
   # The line matched `pip install` but no pip command survived comment
   # stripping/splitting (e.g. a multi-line string hid it): fail, never skip.
-  # A match removed purely as a shell comment is not an active command: allow it.
-  if [[ $found_pip -eq 0 && "$active_line" =~ $pip_install_re ]]; then
+  # A match removed purely as a shell comment is not an active command: allow
+  # it, unless the comment holds a quote (possibly inside an open string).
+  comment_text="$(strip_shell_comment "$line" comment)"
+  if [[ $found_pip -eq 0 && ( "$active_line" =~ $pip_install_re || "$comment_text" == *[\'\"]* ) ]]; then
     failure "${rel}:${lineno}: pip install not verifiable (no pip command found after parsing)"
   fi
 done < <(for wf in ${workflow_files[@]+"${workflow_files[@]}"}; do join_continuations "$wf"; done | grep -E "$pip_install_re" || true)
@@ -188,12 +208,12 @@ for req in ${reqfiles[@]+"${reqfiles[@]}"}; do
   while IFS= read -r entry; do
     # Included files (-r/-c/--requirement/--constraint, any spelling) may not be
     # named requirements*.txt and so would go unchecked: fail instead.
-    if [[ "$entry" =~ ^[[:space:]]*(-[rc]|--requirement|--constraint) ]]; then
+    if [[ "$entry" =~ ^[[:space:]]*(-[rc]|--requirem|--constraint) ]]; then
       failure "${rel}: include line '${entry}' is not allowed (inline the pinned requirements)"
       continue
     fi
     # Editable requirements bypass version/hash pinning: reject them.
-    if [[ "$entry" =~ ^[[:space:]]*(-e|--editable([[:space:]=]|$)) ]]; then
+    if [[ "$entry" =~ ^[[:space:]]*(-e|--ed) ]]; then
       failure "${rel}: editable requirement '${entry}' is not allowed"
       continue
     fi
