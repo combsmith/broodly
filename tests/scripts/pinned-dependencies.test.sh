@@ -134,6 +134,12 @@ split_commands() {
   printf '\n'
 }
 
+# `pip [global options] install`: pip accepts global options (and their values)
+# before the subcommand, e.g. `python3 -m pip --disable-pip-version-check install`.
+pip_install_re='pip3?[[:space:]]+(-[^[:space:]]*[[:space:]]+([^-[:space:]][^[:space:]]*[[:space:]]+)?)*install([[:space:]]|$)'
+# YAML metadata keys (step `name:` etc.) are not shell commands.
+yaml_meta_re='^[[:space:]]*(-[[:space:]]+)?(name|description|id|if):'
+
 shopt -s nullglob
 workflow_files=("${REPO_ROOT}"/.github/workflows/*.yml "${REPO_ROOT}"/.github/workflows/*.yaml)
 shopt -u nullglob
@@ -146,12 +152,14 @@ while IFS= read -r hit; do
   rel="${file#"${REPO_ROOT}/"}"
   # Ignore YAML comment lines that merely mention pip.
   [[ "$line" =~ ^[[:space:]]*# ]] && continue
+  # Ignore step metadata (e.g. `name: Verify pip install`): it is not executed.
+  [[ "$line" =~ $yaml_meta_re ]] && continue
   # Strip real shell comments (unquoted '#') before checking for --require-hashes.
   active_line="$(strip_shell_comment "$line")"
   # Every simple command that runs `pip install` needs the flag itself.
   found_pip=0
   while IFS= read -r cmd; do
-    [[ "$cmd" =~ pip3?[[:space:]]+install ]] || continue
+    [[ "$cmd" =~ $pip_install_re ]] || continue
     found_pip=1
     if [[ "$cmd" == *"--require-hashes"* ]]; then
       pass "${rel}:${lineno}: pip install uses --require-hashes"
@@ -164,7 +172,7 @@ while IFS= read -r hit; do
   if [[ $found_pip -eq 0 ]]; then
     failure "${rel}:${lineno}: pip install not verifiable (no pip command found after parsing)"
   fi
-done < <(for wf in ${workflow_files[@]+"${workflow_files[@]}"}; do join_continuations "$wf"; done | grep -E 'pip3?[[:space:]]+install' || true)
+done < <(for wf in ${workflow_files[@]+"${workflow_files[@]}"}; do join_continuations "$wf"; done | grep -E "$pip_install_re" || true)
 
 # --- Requirements files must hash every requirement ------------------------
 mapfile -t reqfiles < <(find "${REPO_ROOT}" -type f -name 'requirements*.txt' \
@@ -178,6 +186,11 @@ for req in ${reqfiles[@]+"${reqfiles[@]}"}; do
     # named requirements*.txt and so would go unchecked: fail instead.
     if [[ "$entry" =~ ^[[:space:]]*(-[rc]|--requirement|--constraint) ]]; then
       failure "${rel}: include line '${entry}' is not allowed (inline the pinned requirements)"
+      continue
+    fi
+    # Editable requirements bypass version/hash pinning: reject them.
+    if [[ "$entry" =~ ^[[:space:]]*(-e|--editable)([[:space:]=]|$) ]]; then
+      failure "${rel}: editable requirement '${entry}' is not allowed"
       continue
     fi
     # Skip other pip option lines (--index-url, ...): not requirements.
