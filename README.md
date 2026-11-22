@@ -6,8 +6,8 @@ Field-first beekeeping decision-support app. Mobile-first on iOS, Android, and w
 
 ## Prerequisites
 
-- **Node.js** >= 20.x (LTS)
-- **pnpm** >= 9.x
+- **Node.js** >= 20.19.4 (LTS). pnpm 11.21.0 requires Node.js >= 22.13 when it uses the system runtime; with Node.js 20, use a standalone pnpm install.
+- **pnpm** >= 11.x
 - **Go** >= 1.24
 - **Expo CLI** (`npx expo`)
 - **Terraform** >= 1.5 (for infrastructure)
