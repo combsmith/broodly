@@ -68,6 +68,7 @@ done
 join_continuations() {
   awk -v f="$1" '
     { if (buf == "") start = FNR }
+    /^[[:space:]]*#/ { print f ":" FNR ":" buf $0; buf = ""; next }
     /\\[[:space:]]*$/ { sub(/\\[[:space:]]*$/, ""); buf = buf $0; next }
     { print f ":" start ":" buf $0; buf = "" }
     END { if (buf != "") print f ":" start ":" buf }
@@ -161,7 +162,9 @@ while IFS= read -r hit; do
   while IFS= read -r cmd; do
     [[ "$cmd" =~ $pip_install_re ]] || continue
     found_pip=1
-    if [[ "$cmd" == *"--require-hashes"* ]]; then
+    # Redirections (e.g. `> /tmp/--require-hashes.log`) are not pip arguments.
+    pip_args="$(sed -E 's/[0-9&]*(>>?|<)&?[[:space:]]*[^[:space:]]+//g' <<< "$cmd")"
+    if [[ "$pip_args" =~ (^|[[:space:]])--require-hashes([[:space:]=]|$) ]]; then
       pass "${rel}:${lineno}: pip install uses --require-hashes"
     else
       failure "${rel}:${lineno}: pip install without --require-hashes"
@@ -169,7 +172,8 @@ while IFS= read -r hit; do
   done < <(split_commands "$active_line")
   # The line matched `pip install` but no pip command survived comment
   # stripping/splitting (e.g. a multi-line string hid it): fail, never skip.
-  if [[ $found_pip -eq 0 ]]; then
+  # A match removed purely as a shell comment is not an active command: allow it.
+  if [[ $found_pip -eq 0 && "$active_line" =~ $pip_install_re ]]; then
     failure "${rel}:${lineno}: pip install not verifiable (no pip command found after parsing)"
   fi
 done < <(for wf in ${workflow_files[@]+"${workflow_files[@]}"}; do join_continuations "$wf"; done | grep -E "$pip_install_re" || true)
