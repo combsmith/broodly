@@ -189,7 +189,7 @@ for req in ${reqfiles[@]+"${reqfiles[@]}"}; do
       continue
     fi
     # Editable requirements bypass version/hash pinning: reject them.
-    if [[ "$entry" =~ ^[[:space:]]*(-e|--editable)([[:space:]=]|$) ]]; then
+    if [[ "$entry" =~ ^[[:space:]]*(-e|--editable([[:space:]=]|$)) ]]; then
       failure "${rel}: editable requirement '${entry}' is not allowed"
       continue
     fi
