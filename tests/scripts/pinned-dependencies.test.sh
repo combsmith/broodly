@@ -25,22 +25,25 @@ pass() { echo "PASS: $1"; pass_count=$((pass_count + 1)); }
 failure() { echo "FAIL: $1"; fail=1; }
 
 # --- Dockerfile base images must be digest-pinned ---------------------------
-mapfile -t dockerfiles < <(find "${REPO_ROOT}/apps" "${REPO_ROOT}/packages" "${REPO_ROOT}/infra" \
-  -type f \( -name 'Dockerfile' -o -name 'Dockerfile.*' -o -name '*.Dockerfile' \) \
-  -not -path '*/node_modules/*' 2>/dev/null | sort)
+mapfile -t dockerfiles < <(
+  for d in "${REPO_ROOT}/apps" "${REPO_ROOT}/packages" "${REPO_ROOT}/infra"; do
+    [[ -d "$d" ]] && find "$d" -type f \( -name 'Dockerfile' -o -name 'Dockerfile.*' -o -name '*.Dockerfile' \) \
+      -not -path '*/node_modules/*'
+  done | sort
+)
 
 if [[ ${#dockerfiles[@]} -eq 0 ]]; then
   failure "no Dockerfiles found (expected at least apps/api/Dockerfile)"
 fi
 
-for dockerfile in "${dockerfiles[@]}"; do
+for dockerfile in ${dockerfiles[@]+"${dockerfiles[@]}"}; do
   rel="${dockerfile#"${REPO_ROOT}/"}"
   # Collect stage aliases so `FROM <alias>` (multi-stage reuse) is not flagged.
   mapfile -t aliases < <(awk 'toupper($1) == "FROM" { for (i = 2; i <= NF; i++) if (toupper($i) == "AS" && i < NF) print tolower($(i + 1)) }' "$dockerfile")
   while IFS= read -r line; do
     image="$(awk '{ for (i = 2; i <= NF; i++) if ($i !~ /^--/) { print $i; exit } }' <<< "$line")"
     is_alias=0
-    for a in "${aliases[@]}"; do
+    for a in ${aliases[@]+"${aliases[@]}"}; do
       if [[ "${image,,}" == "$a" ]]; then is_alias=1; fi
     done
     if [[ $is_alias -eq 1 || "$image" == "scratch" ]]; then
@@ -73,21 +76,26 @@ join_continuations() {
 # scalar is unwrapped first so the YAML quotes are not mistaken for shell
 # quotes (the shell only sees the scalar's content).
 strip_shell_comment() {
-  local s="$1" out="" c prev=" " quote="" i
-  if [[ "$s" =~ ^([[:space:]]*(-[[:space:]]+)?run:[[:space:]]+)\'(.*)\'[[:space:]]*$ ]]; then
+  local s="$1" out="" c prev=" " quote="" ansi=0 i
+  # A trailing YAML comment (` # ...`) after the closing quote is dropped.
+  local re_sq="^([[:space:]]*(-[[:space:]]+)?run:[[:space:]]+)'(([^']|'')*)'([[:space:]]+#.*)?[[:space:]]*\$"
+  local re_dq='^([[:space:]]*(-[[:space:]]+)?run:[[:space:]]+)"(([^"\\]|\\.)*)"([[:space:]]+#.*)?[[:space:]]*$'
+  if [[ "$s" =~ $re_sq ]]; then
     s="${BASH_REMATCH[3]//\'\'/\'}"
-  elif [[ "$s" =~ ^([[:space:]]*(-[[:space:]]+)?run:[[:space:]]+)\"(.*)\"[[:space:]]*$ ]]; then
+  elif [[ "$s" =~ $re_dq ]]; then
     s="${BASH_REMATCH[3]//\\\"/\"}"
   fi
   for ((i = 0; i < ${#s}; i++)); do
     c="${s:i:1}"
-    if [[ "$prev" == "\\" && "$quote" != "'" ]]; then
+    if [[ "$prev" == "\\" && ( "$quote" != "'" || $ansi -eq 1 ) ]]; then
       out+="$c"; prev="x"; continue
     fi
     if [[ -n "$quote" ]]; then
-      [[ "$c" == "$quote" ]] && quote=""
+      [[ "$c" == "$quote" ]] && { quote=""; ansi=0; }
     elif [[ "$c" == "'" || "$c" == '"' ]]; then
       quote="$c"
+      # $'...' is an ANSI-C string: backslash escapes (including \') apply.
+      [[ "$c" == "'" && "$prev" == '$' ]] && ansi=1
     elif [[ "$c" == "#" && ( -z "$prev" || "$prev" =~ [[:space:]] || "$prev" == [\;\&\|\(] ) ]]; then
       break
     fi
@@ -96,10 +104,9 @@ strip_shell_comment() {
   printf '%s' "$out"
 }
 
-workflow_files=()
-for wf in "${REPO_ROOT}"/.github/workflows/*.yml "${REPO_ROOT}"/.github/workflows/*.yaml; do
-  [[ -f "$wf" ]] && workflow_files+=("$wf")
-done
+shopt -s nullglob
+workflow_files=("${REPO_ROOT}"/.github/workflows/*.yml "${REPO_ROOT}"/.github/workflows/*.yaml)
+shopt -u nullglob
 
 while IFS= read -r hit; do
   file="${hit%%:*}"
@@ -116,13 +123,13 @@ while IFS= read -r hit; do
   else
     failure "${rel}:${lineno}: pip install without --require-hashes"
   fi
-done < <(for wf in "${workflow_files[@]}"; do join_continuations "$wf"; done | grep -E 'pip3?[[:space:]]+install' || true)
+done < <(for wf in ${workflow_files[@]+"${workflow_files[@]}"}; do join_continuations "$wf"; done | grep -E 'pip3?[[:space:]]+install' || true)
 
 # --- Requirements files must hash every requirement ------------------------
 mapfile -t reqfiles < <(find "${REPO_ROOT}" -type f -name 'requirements*.txt' \
   -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null | sort)
 
-for req in "${reqfiles[@]}"; do
+for req in ${reqfiles[@]+"${reqfiles[@]}"}; do
   rel="${req#"${REPO_ROOT}/"}"
   # Join backslash continuations, drop comments/blank lines, check each entry.
   while IFS= read -r entry; do
@@ -133,7 +140,7 @@ for req in "${reqfiles[@]}"; do
     # ' --' option) may supply the '==' pin; a marker's '==' must not count.
     spec="${entry%%;*}"
     spec="${spec%% --*}"
-    if [[ "$spec" =~ ^[[:space:]]*[^[:space:]=\<\>!~\;]+(\[[^]]*\])?[[:space:]]*==[[:space:]]*[^[:space:]=]+[[:space:]]*$ && "$entry" =~ --hash=sha256:[0-9a-fA-F]{64}([[:space:]]|$) ]]; then
+    if [[ "$spec" =~ ^[[:space:]]*[^[:space:]=\<\>!~\;]+(\[[^]]*\])?[[:space:]]*==[[:space:]]*[^[:space:]=*]+[[:space:]]*$ && "$entry" =~ --hash=sha256:[0-9a-fA-F]{64}([[:space:]]|$) ]]; then
       pass "${rel}: '${name}' pinned by version and hash"
     else
       failure "${rel}: '${name}' must be pinned with == and --hash=sha256:"
