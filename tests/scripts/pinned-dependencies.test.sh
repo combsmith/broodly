@@ -38,14 +38,19 @@ fi
 
 for dockerfile in ${dockerfiles[@]+"${dockerfiles[@]}"}; do
   rel="${dockerfile#"${REPO_ROOT}/"}"
-  # Collect stage aliases so `FROM <alias>` (multi-stage reuse) is not flagged.
-  mapfile -t aliases < <(awk 'toupper($1) == "FROM" { for (i = 2; i <= NF; i++) if (toupper($i) == "AS" && i < NF) print tolower($(i + 1)) }' "$dockerfile")
+  # Stage aliases are collected in order: a FROM is checked only against the
+  # aliases of EARLIER stages, then its own alias is added. So a later
+  # `AS alpine` cannot hide an earlier external `FROM alpine`, and
+  # `FROM alpine AS alpine` is still checked as an external image.
+  aliases=()
   while IFS= read -r line; do
     image="$(awk '{ for (i = 2; i <= NF; i++) if ($i !~ /^--/) { print $i; exit } }' <<< "$line")"
+    stage_alias="$(awk '{ for (i = 2; i < NF; i++) if (toupper($i) == "AS") { print tolower($(i + 1)); exit } }' <<< "$line")"
     is_alias=0
     for a in ${aliases[@]+"${aliases[@]}"}; do
       if [[ "${image,,}" == "$a" ]]; then is_alias=1; fi
     done
+    [[ -n "$stage_alias" ]] && aliases+=("$stage_alias")
     if [[ $is_alias -eq 1 || "$image" == "scratch" ]]; then
       continue
     fi
@@ -104,6 +109,29 @@ strip_shell_comment() {
   printf '%s' "$out"
 }
 
+# Split a shell line into simple commands at unquoted ; & && | || (one per
+# output line). '&' inside a redirection (2>&1, &>) is not a separator.
+split_commands() {
+  local s="$1" c prev=" " quote="" i next
+  for ((i = 0; i < ${#s}; i++)); do
+    c="${s:i:1}"; next="${s:i+1:1}"
+    if [[ "$prev" == "\\" && "$quote" != "'" ]]; then
+      printf '%s' "$c"; prev="x"; continue
+    fi
+    if [[ -n "$quote" ]]; then
+      [[ "$c" == "$quote" ]] && quote=""
+    elif [[ "$c" == "'" || "$c" == '"' ]]; then
+      quote="$c"
+    elif [[ "$c" == ";" || "$c" == "|" ]]; then
+      printf '\n'; prev=" "; continue
+    elif [[ "$c" == "&" && "$prev" != ">" && "$prev" != "<" && "$next" != ">" ]]; then
+      printf '\n'; prev=" "; continue
+    fi
+    printf '%s' "$c"; prev="$c"
+  done
+  printf '\n'
+}
+
 shopt -s nullglob
 workflow_files=("${REPO_ROOT}"/.github/workflows/*.yml "${REPO_ROOT}"/.github/workflows/*.yaml)
 shopt -u nullglob
@@ -118,11 +146,15 @@ while IFS= read -r hit; do
   [[ "$line" =~ ^[[:space:]]*# ]] && continue
   # Strip real shell comments (unquoted '#') before checking for --require-hashes.
   active_line="$(strip_shell_comment "$line")"
-  if [[ "$active_line" == *"--require-hashes"* ]]; then
-    pass "${rel}:${lineno}: pip install uses --require-hashes"
-  else
-    failure "${rel}:${lineno}: pip install without --require-hashes"
-  fi
+  # Every simple command that runs `pip install` needs the flag itself.
+  while IFS= read -r cmd; do
+    [[ "$cmd" =~ pip3?[[:space:]]+install ]] || continue
+    if [[ "$cmd" == *"--require-hashes"* ]]; then
+      pass "${rel}:${lineno}: pip install uses --require-hashes"
+    else
+      failure "${rel}:${lineno}: pip install without --require-hashes"
+    fi
+  done < <(split_commands "$active_line")
 done < <(for wf in ${workflow_files[@]+"${workflow_files[@]}"}; do join_continuations "$wf"; done | grep -E 'pip3?[[:space:]]+install' || true)
 
 # --- Requirements files must hash every requirement ------------------------
@@ -133,7 +165,13 @@ for req in ${reqfiles[@]+"${reqfiles[@]}"}; do
   rel="${req#"${REPO_ROOT}/"}"
   # Join backslash continuations, drop comments/blank lines, check each entry.
   while IFS= read -r entry; do
-    # Skip pip option lines (-r/-c includes, --index-url, ...): not requirements.
+    # Included files (-r/-c/--requirement/--constraint, any spelling) may not be
+    # named requirements*.txt and so would go unchecked: fail instead.
+    if [[ "$entry" =~ ^[[:space:]]*(-[rc]|--requirement|--constraint) ]]; then
+      failure "${rel}: include line '${entry}' is not allowed (inline the pinned requirements)"
+      continue
+    fi
+    # Skip other pip option lines (--index-url, ...): not requirements.
     [[ "$entry" =~ ^[[:space:]]*- ]] && continue
     name="${entry%%[ =<>!~;]*}"
     # Only the package specifier (before any ';' environment marker or
