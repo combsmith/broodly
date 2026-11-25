@@ -37,6 +37,7 @@ resource "google_project_service" "ci_required" {
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
     "artifactregistry.googleapis.com",
+    "firebase.googleapis.com",
   ])
 
   project = var.project_id
@@ -227,6 +228,8 @@ module "firebase" {
   project_id   = var.project_id
   environment  = var.environment
   display_name = "Broodly Web"
+
+  depends_on = [google_project_service.ci_required]
 }
 
 module "cloud_run" {

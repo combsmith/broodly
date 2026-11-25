@@ -21,6 +21,7 @@ gcloud services enable \
   iamcredentials.googleapis.com \
   sts.googleapis.com \
   artifactregistry.googleapis.com \
+  firebase.googleapis.com \
   --project="broodly-491920"
 ```
 
@@ -146,7 +147,7 @@ Removing `private_network` from an existing Cloud SQL instance is a ForceNew ope
 3. Adjust only other settings as needed (e.g., Cloud Run egress, security groups)
 
 **Full revert is a migration, not a rollback.** Removing `private_network` forces instance replacement. With `deletion_protection = true` (the setting that protects the data), the locked Google provider (5.45.2) refuses to destroy the instance, so `terraform apply` fails by design. Reverting therefore cannot be completed by Terraform alone. To migrate off the private network:
-1. Export the database using Cloud SQL export (e.g., to a GCS bucket) and verify the export
+1. Stop and drain all writers (e.g., scale the Cloud Run API to zero and pause any jobs) so no writes land after the export; keep them stopped until the restore and `db-connection-string` update are complete. Then export the database using Cloud SQL export (e.g., to a GCS bucket) and verify the export
 2. Deliberately set `deletion_protection = false` and apply. This does not destroy the instance by itself.
 3. Revert the Terraform configuration (remove `private_network`) and apply. **This apply destroys the existing instance and creates the replacement**, so confirm the export first.
 4. Restore the export into the new instance and repoint `db-connection-string`
