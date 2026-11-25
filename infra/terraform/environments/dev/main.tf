@@ -28,6 +28,8 @@ provider "google-beta" {
 # impersonate broodly-ci and push the API image to Artifact Registry.
 # Without iamcredentials.googleapis.com, google-github-actions/auth succeeds but
 # docker push fails with "Unauthenticated request" (issues #607, #611).
+# Also includes firebase.googleapis.com, required by the Firebase module
+# (google_firebase_project) rather than the CI image-push path.
 # Guarded by tests/scripts/gcp-required-apis.test.sh.
 # -----------------------------------------------------------------------------
 
