@@ -18,6 +18,13 @@ resource "google_compute_subnetwork" "serverless" {
   network                  = google_compute_network.main.id
   ip_cidr_range            = var.serverless_subnet_cidr
   private_ip_google_access = true
+
+  # VPC flow logs for network visibility (SonarCloud: complete logging).
+  log_config {
+    aggregation_interval = "INTERVAL_10_MIN"
+    flow_sampling        = 0.5
+    metadata             = "INCLUDE_ALL_METADATA"
+  }
 }
 
 # Internal range that Google-managed services (Cloud SQL) allocate IPs from.
