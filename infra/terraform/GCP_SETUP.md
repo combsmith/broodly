@@ -121,10 +121,15 @@ The database is provisioned via Terraform (`infra/terraform/modules/cloud-sql/`)
 The connection string must be stored in Secret Manager:
 
 ```bash
-# After Terraform creates the Cloud SQL instance:
+# After Terraform creates the Cloud SQL instance, look up its private IP.
+# Cloud Run has no /cloudsql socket mount here; it connects over TCP to the
+# private IP through Direct VPC egress.
+PRIVATE_IP=$(gcloud sql instances describe broodly-db-dev \
+  --project="broodly-491920" \
+  --format="value(ipAddresses[0].ipAddress)")
 gcloud secrets versions add db-connection-string \
   --project="broodly-491920" \
-  --data-file=- <<< "postgres://broodly:PASSWORD@/broodly?host=/cloudsql/broodly-491920:us-central1:broodly-db-dev"
+  --data-file=- <<< "postgres://broodly:PASSWORD@${PRIVATE_IP}:5432/broodly?sslmode=require"
 ```
 
 ## Reference

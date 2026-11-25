@@ -19,7 +19,7 @@ variable "serverless_subnet_cidr" {
   default     = "10.10.0.0/24"
 
   validation {
-    condition     = can(cidrhost(var.serverless_subnet_cidr, 0)) && tonumber(split("/", var.serverless_subnet_cidr)[1]) <= 26
+    condition     = can(cidrhost(var.serverless_subnet_cidr, 0)) && try(tonumber(split("/", var.serverless_subnet_cidr)[1]) <= 26, false)
     error_message = "serverless_subnet_cidr must be a valid CIDR of /26 or larger (Direct VPC egress requirement)."
   }
 }

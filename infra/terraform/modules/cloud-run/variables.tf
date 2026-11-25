@@ -68,6 +68,11 @@ variable "vpc_network" {
   description = "VPC network ID for Direct VPC egress. Set together with vpc_subnetwork; null disables VPC egress."
   type        = string
   default     = null
+
+  validation {
+    condition     = (var.vpc_network == null) == (var.vpc_subnetwork == null)
+    error_message = "vpc_network and vpc_subnetwork must be set together (both null or both non-null)."
+  }
 }
 
 variable "vpc_subnetwork" {
