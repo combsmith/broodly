@@ -185,7 +185,8 @@ jobs:
         # — so the mirror in scripts/apply-rulesets.sh cannot silently drift.
         run: bats tests/integration/
       - name: Install PyYAML for workflow integrity test
-        run: python3 -m pip install --disable-pip-version-check --no-cache-dir 'PyYAML==6.0.2'
+        # Hash-pinned, wheels only (ADR-0018 form; Scorecard Pinned-Dependencies, #395).
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir --require-hashes --only-binary ':all:' -r tests/scripts/requirements.txt
       - name: Workflow integrity test
         run: bash tests/scripts/workflow-integrity.test.sh
       - name: golangci-lint / go.mod toolchain compatibility test
