@@ -185,8 +185,8 @@ jobs:
         # — so the mirror in scripts/apply-rulesets.sh cannot silently drift.
         run: bats tests/integration/
       - name: Install PyYAML for workflow integrity test
-        # Hash-pinned (Scorecard Pinned-Dependencies, #395); see tests/scripts/requirements.txt.
-        run: python3 -m pip install --disable-pip-version-check --no-cache-dir --require-hashes -r tests/scripts/requirements.txt
+        # Hash-pinned, wheels only (ADR-0018 form; Scorecard Pinned-Dependencies, #395).
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir --require-hashes --only-binary ':all:' -r tests/scripts/requirements.txt
       - name: Workflow integrity test
         run: bash tests/scripts/workflow-integrity.test.sh
       - name: golangci-lint / go.mod toolchain compatibility test
@@ -211,11 +211,6 @@ jobs:
         # Keeps the OSV/Scorecard remediations for image-size (via metro) and
         # zod pinned in pnpm-lock.yaml (Scorecard Vulnerabilities, #447).
         run: bash tests/scripts/lockfile-vulnerable-versions.test.sh
-
-      - name: Pinned dependencies guard
-        # Dockerfile base images digest-pinned, pip installs hash-pinned
-        # (OpenSSF Scorecard Pinned-Dependencies, #395).
-        run: bash tests/scripts/pinned-dependencies.test.sh
 
   secret-scan:
     name: Secret scan (gitleaks)

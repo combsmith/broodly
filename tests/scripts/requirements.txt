@@ -1,6 +1,6 @@
 # Python dependencies for the CI shell tests (workflow-integrity.test.sh).
 # Pinned by version AND hash (OpenSSF Scorecard Pinned-Dependencies, #395);
-# install with: python3 -m pip install --require-hashes -r tests/scripts/requirements.txt
+# install with: python3 -m pip install --require-hashes --only-binary ':all:' -r tests/scripts/requirements.txt
 # Hashes cover the CPython 3.10-3.13 linux x86_64 wheels and the sdist (PyPI).
 # Kept current by Dependabot (pip ecosystem, /tests/scripts).
 PyYAML==6.0.2 \
