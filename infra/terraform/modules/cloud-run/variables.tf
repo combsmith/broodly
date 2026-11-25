@@ -63,3 +63,20 @@ variable "allow_unauthenticated" {
   type        = bool
   default     = false
 }
+
+variable "vpc_network" {
+  description = "VPC network ID for Direct VPC egress. Set together with vpc_subnetwork; null disables VPC egress."
+  type        = string
+  default     = null
+}
+
+variable "vpc_subnetwork" {
+  description = "Subnetwork ID for Direct VPC egress (needed to reach the private-IP Cloud SQL instance). Null disables VPC egress."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.vpc_subnetwork == null || length(trimspace(var.vpc_subnetwork)) > 0
+    error_message = "vpc_subnetwork must be null or a non-empty subnetwork ID."
+  }
+}

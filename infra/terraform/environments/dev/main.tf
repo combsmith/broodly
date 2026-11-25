@@ -47,6 +47,20 @@ resource "google_project_service" "ci_required" {
   disable_on_destroy = false
 }
 
+# Private networking APIs: Cloud SQL has no public IP and uses Private Service
+# Access (issue #649, terraform:S6329).
+resource "google_project_service" "network_required" {
+  for_each = toset([
+    "compute.googleapis.com",
+    "servicenetworking.googleapis.com",
+  ])
+
+  project = var.project_id
+  service = each.value
+
+  disable_on_destroy = false
+}
+
 # -----------------------------------------------------------------------------
 # Secret Manager — secret containers only (values added manually or via CI)
 # -----------------------------------------------------------------------------
@@ -168,6 +182,16 @@ resource "google_secret_manager_secret_iam_member" "worker_db_connection" {
 # Modules
 # -----------------------------------------------------------------------------
 
+module "network" {
+  source = "../../modules/network"
+
+  project_id  = var.project_id
+  region      = var.region
+  environment = var.environment
+
+  depends_on = [google_project_service.network_required]
+}
+
 module "cloud_sql" {
   source = "../../modules/cloud-sql"
 
@@ -177,6 +201,7 @@ module "cloud_sql" {
   tier                  = "db-f1-micro"
   deletion_protection   = false
   db_password_secret_id = google_secret_manager_secret.db_password.secret_id
+  private_network       = module.network.private_services_network_id
 }
 
 module "storage" {
@@ -217,4 +242,6 @@ module "cloud_run" {
   min_instances            = 0
   max_instances            = 5
   allow_unauthenticated    = true # API validates Firebase tokens internally
+  vpc_network              = module.network.network_id
+  vpc_subnetwork           = module.network.serverless_subnetwork_id
 }

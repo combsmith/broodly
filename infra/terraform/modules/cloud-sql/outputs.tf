@@ -4,8 +4,8 @@ output "connection_name" {
 }
 
 output "ip_address" {
-  description = "Public IP address of the Cloud SQL instance"
-  value       = google_sql_database_instance.main.public_ip_address
+  description = "Private IP address of the Cloud SQL instance (no public IP is assigned)"
+  value       = google_sql_database_instance.main.private_ip_address
 }
 
 output "database_name" {

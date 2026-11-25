@@ -40,6 +40,20 @@ resource "google_cloud_run_v2_service" "api" {
       }
     }
 
+    # Direct VPC egress so the service reaches the private-IP-only Cloud SQL
+    # instance (issue #649). Only RFC 1918 traffic uses the VPC; public egress
+    # (Firebase, Google APIs) is unchanged.
+    dynamic "vpc_access" {
+      for_each = var.vpc_subnetwork == null ? [] : [1]
+      content {
+        egress = "PRIVATE_RANGES_ONLY"
+        network_interfaces {
+          network    = var.vpc_network
+          subnetwork = var.vpc_subnetwork
+        }
+      }
+    }
+
     scaling {
       min_instance_count = var.min_instances
       max_instance_count = var.max_instances

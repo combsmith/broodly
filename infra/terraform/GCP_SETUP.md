@@ -116,7 +116,9 @@ These Firebase settings must be configured manually in the [Firebase Console](ht
 
 ## 5. Cloud SQL (Database)
 
-The database is provisioned via Terraform (`infra/terraform/modules/cloud-sql/`), but the connection string must be stored in Secret Manager:
+The database is provisioned via Terraform (`infra/terraform/modules/cloud-sql/`). It has **no public IP**: it gets a private IP through Private Service Access on the VPC from `infra/terraform/modules/network/`. Cloud Run reaches it through Direct VPC egress. You can't connect from outside the VPC, including from a laptop with the Cloud SQL Auth Proxy, unless you have a path into the VPC.
+
+The connection string must be stored in Secret Manager:
 
 ```bash
 # After Terraform creates the Cloud SQL instance:
