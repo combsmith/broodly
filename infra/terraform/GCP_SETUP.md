@@ -133,6 +133,24 @@ gcloud secrets versions add db-connection-string \
 
 The API's database layer must parse `instance` and `ip_type` and dial through the connector.
 
+### 5.1 Rollback: Keeping the Private Network
+
+**⚠️ IMPORTANT: Do NOT roll back by reverting the Cloud SQL Terraform changes wholesale.**
+
+Removing `private_network` from an existing Cloud SQL instance is a ForceNew operation, which means `terraform apply` will destroy and recreate the instance. Since the dev environment sets `deletion_protection = false`, the database will be **permanently deleted**.
+
+**To safely roll back while keeping the database:**
+
+1. Keep `private_network` set in `infra/terraform/modules/cloud-sql/`
+2. Retain the VPC (`infra/terraform/modules/network/`) and the Private Service Access connection
+3. Adjust only other settings as needed (e.g., Cloud Run egress, security groups)
+
+If you must fully revert:
+1. Set `deletion_protection = true` **before** removing `private_network`
+2. Apply the change to enable deletion protection
+3. Manually export the database (if needed) using Cloud SQL export
+4. Only then revert the Terraform configuration
+
 ## Reference
 
 | Resource | Value |
