@@ -91,7 +91,7 @@ check "cloud-sql enforces connector-only access (connector_enforcement = REQUIRE
 # grep -E over uncommented lines only, so a commented-out setting never counts.
 active_grep() {
   [[ -f "$2" ]] || return 1
-  grep -Ev '^[[:space:]]*(#|//)' "$2" | grep -Eq "$1"
+  grep -Ev '^[[:space:]]*(#|//)' "$2" | grep -E "$1" >/dev/null
 }
 
 check "cloud-sql disables the public IPv4 endpoint (ipv4_enabled = false)" \

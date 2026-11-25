@@ -22,7 +22,7 @@ resource "google_compute_subnetwork" "serverless" {
   # VPC flow logs for network visibility (SonarCloud: complete logging).
   log_config {
     aggregation_interval = "INTERVAL_10_MIN"
-    flow_sampling        = 0.5
+    flow_sampling        = 1.0
     metadata             = "INCLUDE_ALL_METADATA"
   }
 }

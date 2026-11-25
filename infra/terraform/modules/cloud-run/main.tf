@@ -64,6 +64,15 @@ resource "google_cloud_run_v2_service" "api" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
+
+  # Cross-variable check (variable validation cannot reference other
+  # variables before Terraform 1.9).
+  lifecycle {
+    precondition {
+      condition     = (var.vpc_network == null) == (var.vpc_subnetwork == null)
+      error_message = "vpc_network and vpc_subnetwork must be set together (both null or both non-null)."
+    }
+  }
 }
 
 # SECURITY: Allow unauthenticated HTTP access to Cloud Run.

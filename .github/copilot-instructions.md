@@ -51,7 +51,7 @@ These are required when running the Go API server locally; they are not needed f
 package development or mobile-only work:
 
 - `FIREBASE_PROJECT_ID`: GCP Firebase project ID
-- `DATABASE_URL`: PostgreSQL connection string (Cloud SQL proxy for local dev; matches the Cloud Run secret binding)
+- `DATABASE_URL`: PostgreSQL connection string (Cloud SQL has no public IP, so use a local PostgreSQL for local dev or a path into the VPC; matches the Cloud Run secret binding)
 
 ## Testing Framework
 

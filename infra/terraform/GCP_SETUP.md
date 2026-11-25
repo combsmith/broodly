@@ -118,19 +118,20 @@ These Firebase settings must be configured manually in the [Firebase Console](ht
 
 The database is provisioned via Terraform (`infra/terraform/modules/cloud-sql/`). It has **no public IP**: it gets a private IP through Private Service Access on the VPC from `infra/terraform/modules/network/`. Cloud Run reaches it through Direct VPC egress. You can't connect from outside the VPC, including from a laptop with the Cloud SQL Auth Proxy, unless you have a path into the VPC.
 
-The connection string must be stored in Secret Manager:
+The instance sets `connector_enforcement = "REQUIRED"`, so plain TCP clients are rejected even over the private IP. The API must connect through the Cloud SQL Go Connector (`cloud.google.com/go/cloudsqlconn`) with `cloudsqlconn.WithPrivateIP()`, using the instance connection name. Direct VPC egress gives network reachability; the connector supplies authorization.
+
+Store a connection string in Secret Manager that carries the instance connection name instead of a host:
 
 ```bash
-# After Terraform creates the Cloud SQL instance, look up its private IP.
-# Cloud Run has no /cloudsql socket mount here; it connects over TCP to the
-# private IP through Direct VPC egress.
-PRIVATE_IP=$(gcloud sql instances describe broodly-db-dev \
+CONNECTION_NAME=$(gcloud sql instances describe broodly-db-dev \
   --project="broodly-491920" \
-  --format="value(ipAddresses[0].ipAddress)")
+  --format="value(connectionName)")
 gcloud secrets versions add db-connection-string \
   --project="broodly-491920" \
-  --data-file=- <<< "postgres://broodly:PASSWORD@${PRIVATE_IP}:5432/broodly?sslmode=require"
+  --data-file=- <<< "postgres://broodly:PASSWORD@/broodly?instance=${CONNECTION_NAME}&ip_type=PRIVATE"
 ```
+
+The API's database layer must parse `instance` and `ip_type` and dial through the connector.
 
 ## Reference
 
