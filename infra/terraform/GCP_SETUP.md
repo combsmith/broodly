@@ -134,6 +134,15 @@ gcloud secrets versions add db-connection-string \
 
 The API's database layer must parse `instance` and `ip_type` and dial through the connector.
 
+Cloud Run resolves environment-variable secrets only when an instance starts, so a new secret version does not reach running instances. After updating `db-connection-string`, deploy a new revision (or otherwise replace the running instances) so they pick up the new value:
+
+```bash
+gcloud run services update broodly-api-dev \
+  --project="broodly-491920" \
+  --region=us-central1 \
+  --update-env-vars="SECRET_ROTATED_AT=$(date +%s)"
+```
+
 ### 5.1 Rollback: Keeping the Private Network
 
 **⚠️ IMPORTANT: Do NOT roll back by reverting the Cloud SQL Terraform changes wholesale.**
@@ -150,7 +159,7 @@ Removing `private_network` from an existing Cloud SQL instance is a ForceNew ope
 1. Stop and drain all writers (e.g., scale the Cloud Run API to zero and pause any jobs) so no writes land after the export; keep them stopped until the restore and `db-connection-string` update are complete. Then export the database using Cloud SQL export (e.g., to a GCS bucket) and verify the export
 2. Deliberately set `deletion_protection = false` and apply. This does not destroy the instance by itself.
 3. Revert the Terraform configuration (remove `private_network`) and apply. **This apply destroys the existing instance and creates the replacement**, so confirm the export first.
-4. Restore the export into the new instance and repoint `db-connection-string`
+4. Restore the export into the new instance and repoint `db-connection-string`, then deploy a new Cloud Run revision so running instances reload the secret before you scale the API back up
 
 > **Behavior change (issue #649):** `ipv4_enabled = false` removes the public IPv4 endpoint, and no `authorized_networks` allow-list remains. Any client outside the VPC (e.g., an operator laptop using a public IP) can no longer connect directly; they need a path into the VPC.
 
