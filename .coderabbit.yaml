@@ -11,7 +11,12 @@ reviews:
     - "!_bmad/**"
     - "!_bmad-output/**"
     - "!.claude/**"
-    - "**/*.yml"
+  path_instructions:
+    - path: "**/*.yml"
+      instructions: >
+        Focus on YAML best practices: correct indentation, valid syntax,
+        consistent quoting style, and proper schema adherence. Flag any
+        duplicate keys or potential parsing issues.
   request_changes_workflow: false
   high_level_summary: true
   poem: false

@@ -141,7 +141,7 @@ Removing `private_network` from an existing Cloud SQL instance is a ForceNew ope
 
 **To safely roll back while keeping the database:**
 
-1. Keep `private_network` set in `infra/terraform/modules/cloud-sql/`
+1. Keep `private_network = module.network.private_services_network_id` in `infra/terraform/environments/dev/main.tf` and retain the `private_network = var.private_network` wiring in `infra/terraform/modules/cloud-sql/`
 2. Retain the VPC (`infra/terraform/modules/network/`) and the Private Service Access connection
 3. Adjust only other settings as needed (e.g., Cloud Run egress, security groups)
 
