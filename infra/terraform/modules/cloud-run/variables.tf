@@ -76,7 +76,7 @@ variable "vpc_subnetwork" {
   default     = null
 
   validation {
-    condition     = var.vpc_subnetwork == null || length(trimspace(var.vpc_subnetwork)) > 0
+    condition     = var.vpc_subnetwork == null ? true : length(trimspace(var.vpc_subnetwork)) > 0
     error_message = "vpc_subnetwork must be null or a non-empty subnetwork ID."
   }
 }

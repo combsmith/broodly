@@ -55,6 +55,13 @@ resource "google_sql_database_instance" "main" {
       # No public IPv4 endpoint (terraform:S6329, issue #649). The instance is
       # reachable only over private IP via Private Service Access on
       # var.private_network; Cloud Run reaches it through Direct VPC egress.
+      #
+      # ROLLBACK WARNING: do NOT roll back by reverting this change wholesale.
+      # Removing private_network from an existing instance is ForceNew, so
+      # `terraform apply` would destroy and recreate the instance (dev sets
+      # deletion_protection = false, so the data would be lost). To recover,
+      # keep private_network set and retain the VPC and the Private Service
+      # Access connection; adjust other settings (e.g. Cloud Run egress) instead.
       ipv4_enabled    = false
       private_network = var.private_network
 

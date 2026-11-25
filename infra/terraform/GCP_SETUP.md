@@ -123,12 +123,12 @@ The instance sets `connector_enforcement = "REQUIRED"`, so plain TCP clients are
 Store a connection string in Secret Manager that carries the instance connection name instead of a host:
 
 ```bash
-CONNECTION_NAME=$(gcloud sql instances describe broodly-db-dev \
+CONNECTION_NAME=$(gcloud sql instances describe broodly-dev \
   --project="broodly-491920" \
   --format="value(connectionName)")
 gcloud secrets versions add db-connection-string \
   --project="broodly-491920" \
-  --data-file=- <<< "postgres://broodly:PASSWORD@/broodly?instance=${CONNECTION_NAME}&ip_type=PRIVATE"
+  --data-file=<(printf '%s' "postgres://broodly:PASSWORD@/broodly?instance=${CONNECTION_NAME}&ip_type=PRIVATE")
 ```
 
 The API's database layer must parse `instance` and `ip_type` and dial through the connector.
