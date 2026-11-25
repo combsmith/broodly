@@ -147,8 +147,8 @@ Removing `private_network` from an existing Cloud SQL instance is a ForceNew ope
 
 **Full revert is a migration, not a rollback.** Removing `private_network` forces instance replacement. With `deletion_protection = true` (the setting that protects the data), the locked Google provider (5.45.2) refuses to destroy the instance, so `terraform apply` fails by design. Reverting therefore cannot be completed by Terraform alone. To migrate off the private network:
 1. Export the database using Cloud SQL export (e.g., to a GCS bucket) and verify the export
-2. Deliberately set `deletion_protection = false` and apply, accepting that the instance will be destroyed
-3. Revert the Terraform configuration and apply to create the replacement instance
+2. Deliberately set `deletion_protection = false` and apply. This does not destroy the instance by itself.
+3. Revert the Terraform configuration (remove `private_network`) and apply. **This apply destroys the existing instance and creates the replacement**, so confirm the export first.
 4. Restore the export into the new instance and repoint `db-connection-string`
 
 > **Behavior change (issue #649):** `ipv4_enabled = false` removes the public IPv4 endpoint, and no `authorized_networks` allow-list remains. Any client outside the VPC (e.g., an operator laptop using a public IP) can no longer connect directly; they need a path into the VPC.
