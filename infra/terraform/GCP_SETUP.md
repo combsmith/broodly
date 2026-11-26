@@ -126,15 +126,15 @@ Store a connection string in Secret Manager that carries the instance connection
 ```bash
 CONNECTION_NAME=$(gcloud sql instances describe broodly-dev \
   --project="broodly-491920" \
-  --format="value(connectionName)")
+  --format="value(connectionName)") || { echo 'Failed to read instance connection name' >&2; exit 1; }
+: "${CONNECTION_NAME:?instance connection name is empty}"
 DB_PASSWORD=$(gcloud secrets versions access latest \
   --secret=db-password \
   --project="broodly-491920") || { echo 'Failed to read db-password' >&2; exit 1; }
 : "${DB_PASSWORD:?db-password is empty}"
-export DB_PASSWORD CONNECTION_NAME
 gcloud secrets versions add db-connection-string \
   --project="broodly-491920" \
-  --data-file=<(python3 -c 'import os, urllib.parse; print("postgres://broodly-app:{}@/broodly?instance={}&ip_type=PRIVATE".format(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""), urllib.parse.quote(os.environ["CONNECTION_NAME"], safe="")), end="")')
+  --data-file=<(DB_PASSWORD="$DB_PASSWORD" CONNECTION_NAME="$CONNECTION_NAME" python3 -c 'import os, urllib.parse; print("postgres://broodly-app:{}@/broodly?instance={}&ip_type=PRIVATE".format(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""), urllib.parse.quote(os.environ["CONNECTION_NAME"], safe="")), end="")')
 unset DB_PASSWORD CONNECTION_NAME
 ```
 
@@ -170,7 +170,8 @@ Removing `private_network` from an existing Cloud SQL instance is a ForceNew ope
 4. Recreate the database and user on the new instance, then verify both exist. The replacement keeps the name `broodly-dev`, so `google_sql_database.broodly` and `google_sql_user.app` stay in Terraform state while the new instance has neither. Remove them from state (`terraform state rm`) and re-apply, or create them directly, for example:
    ```bash
    gcloud sql databases create broodly --instance=broodly-dev --project="broodly-491920"
-   gcloud sql users create broodly-app --instance=broodly-dev --project="broodly-491920" \
+   gcloud sql users create broodly-app --instance=broodly-dev --project="broodly-491920"
+   gcloud sql users set-password broodly-app --instance=broodly-dev --project="broodly-491920" \
      --prompt-for-password   # paste the db-password secret value; never pass it as a --password argument
    gcloud sql databases list --instance=broodly-dev --project="broodly-491920"
    gcloud sql users list --instance=broodly-dev --project="broodly-491920"
