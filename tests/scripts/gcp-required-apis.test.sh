@@ -13,6 +13,7 @@
 # deferred until docker push. #608 documented the API as a manual setup step,
 # which was never run. This guard keeps the APIs codified in Terraform and keeps
 # a token preflight in CI so a missing API fails fast with an actionable error.
+# Issue #675 extended the same preflight to .github/workflows/terraform.yml.
 #
 # Run: bash tests/scripts/gcp-required-apis.test.sh
 
@@ -135,6 +136,37 @@ done
 job_has_preflight_before_build "$CI_FILE" \
   && { echo "ok - push-api-image verifies GCP credentials before docker build"; pass_count=$((pass_count + 1)); } \
   || { echo "not ok - push-api-image lacks a 'gcloud auth print-access-token' preflight before docker build"; fail=1; }
+
+# --- Positive assertion: Terraform workflow verifies credentials before init. --
+# Fleet Monitor #675: every terraform.yml run failed in `terraform init` with the
+# same iamcredentials error, because the API Terraform would enable is needed by
+# Terraform itself to read the GCS state bucket. The preflight must run before
+# `terraform init`, and every Terraform step must be gated on its result.
+tf_workflow_has_preflight() {
+  python3 - "$1" <<'PY'
+import sys, yaml
+with open(sys.argv[1]) as fh:
+    wf = yaml.safe_load(fh)
+steps = wf["jobs"]["terraform"]["steps"]
+runs = [s.get("run", "") or "" for s in steps]
+pre = next((i for i, r in enumerate(runs) if "gcloud auth print-access-token" in r), None)
+init = next((i for i, r in enumerate(runs) if "terraform init" in r), None)
+if pre is None or init is None or pre >= init:
+    sys.exit(1)
+pre_id = steps[pre].get("id")
+if not pre_id:
+    sys.exit(1)
+gate = f"steps.{pre_id}.outputs.usable == 'true'"
+tf_steps = [s for s in steps[pre + 1:]
+            if "terraform" in (s.get("run", "") or "") or "setup-terraform" in (s.get("uses", "") or "")]
+sys.exit(0 if tf_steps and all(gate in str(s.get("if", "")) for s in tf_steps) else 1)
+PY
+}
+
+TF_WORKFLOW="${REPO_ROOT}/.github/workflows/terraform.yml"
+tf_workflow_has_preflight "$TF_WORKFLOW" \
+  && { echo "ok - terraform.yml verifies GCP credentials before terraform init and gates Terraform steps on it"; pass_count=$((pass_count + 1)); } \
+  || { echo "not ok - terraform.yml lacks a gated 'gcloud auth print-access-token' preflight before terraform init"; fail=1; }
 
 echo "---"
 [[ "$fail" -eq 0 ]] \

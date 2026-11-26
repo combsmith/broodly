@@ -66,28 +66,54 @@ jobs:
         if: steps.prereqs.outputs.configured == 'true' && steps.auth.outcome == 'failure'
         run: echo "::warning::GCP authentication failed — WIF pool/provider may not exist yet. Run the Bootstrap workflow first."
 
-      - name: Set up Terraform
+      # The auth step only writes a WIF credentials file; service-account
+      # impersonation is deferred until first use. Mint a token now so a missing
+      # GCP API (iamcredentials.googleapis.com, issue #675) is reported clearly
+      # instead of as an opaque 403 from the GCS state backend in `terraform init`.
+      # Terraform cannot enable that API itself (it needs it to read state), so it
+      # must be enabled once by hand — see infra/terraform/GCP_SETUP.md step 1.0.
+      # PRs warn and skip (bootstrap-in-progress); pushes to main fail loudly.
+      - name: Verify GCP credentials
         if: steps.prereqs.outputs.configured == 'true' && steps.auth.outcome == 'success'
+        id: creds
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if gcloud auth print-access-token > /dev/null; then
+            echo "usable=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          echo "usable=false" >> "${GITHUB_OUTPUT}"
+          msg="Could not mint an access token for the CI service account. Enable iamcredentials.googleapis.com (and the other APIs in google_project_service.ci_required) with 'gcloud services enable' — see infra/terraform/GCP_SETUP.md step 1.0."
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            echo "::warning title=GCP credentials unusable::Skipping Terraform. ${msg}"
+          else
+            echo "::error title=GCP credentials unusable::${msg}"
+            exit 1
+          fi
+
+      - name: Set up Terraform
+        if: steps.prereqs.outputs.configured == 'true' && steps.creds.outputs.usable == 'true'
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "~> 1.5"
 
       - name: Terraform Init
-        if: steps.prereqs.outputs.configured == 'true' && steps.auth.outcome == 'success'
+        if: steps.prereqs.outputs.configured == 'true' && steps.creds.outputs.usable == 'true'
         run: terraform init
 
       - name: Terraform Validate
-        if: steps.prereqs.outputs.configured == 'true' && steps.auth.outcome == 'success'
+        if: steps.prereqs.outputs.configured == 'true' && steps.creds.outputs.usable == 'true'
         run: terraform validate
 
       - name: Terraform Plan
-        if: steps.prereqs.outputs.configured == 'true' && steps.auth.outcome == 'success'
+        if: steps.prereqs.outputs.configured == 'true' && steps.creds.outputs.usable == 'true'
         id: plan
         run: terraform plan -no-color -out=tfplan 2>&1 | tee /tmp/tfplan.txt; exit ${PIPESTATUS[0]}
         continue-on-error: true
 
       - name: Comment plan on PR
-        if: steps.prereqs.outputs.configured == 'true' && steps.auth.outcome == 'success' && github.event_name == 'pull_request'
+        if: steps.prereqs.outputs.configured == 'true' && steps.creds.outputs.usable == 'true' && github.event_name == 'pull_request'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PLAN_OUTCOME: ${{ steps.plan.outcome }}
@@ -120,9 +146,9 @@ jobs:
             }
 
       - name: Terraform Plan Status
-        if: steps.prereqs.outputs.configured == 'true' && steps.auth.outcome == 'success' && steps.plan.outcome == 'failure'
+        if: steps.prereqs.outputs.configured == 'true' && steps.creds.outputs.usable == 'true' && steps.plan.outcome == 'failure'
         run: exit 1
 
       - name: Terraform Apply
-        if: steps.prereqs.outputs.configured == 'true' && steps.auth.outcome == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.prereqs.outputs.configured == 'true' && steps.creds.outputs.usable == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: terraform apply -auto-approve tfplan
