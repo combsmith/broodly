@@ -129,14 +129,16 @@ CONNECTION_NAME=$(gcloud sql instances describe broodly-dev \
   --format="value(connectionName)")
 DB_PASSWORD=$(gcloud secrets versions access latest \
   --secret=db-password \
-  --project="broodly-491920")
+  --project="broodly-491920") || { echo 'Failed to read db-password' >&2; exit 1; }
+: "${DB_PASSWORD:?db-password is empty}"
+export DB_PASSWORD CONNECTION_NAME
 gcloud secrets versions add db-connection-string \
   --project="broodly-491920" \
-  --data-file=<(printf '%s' "postgres://broodly-app:${DB_PASSWORD}@/broodly?instance=${CONNECTION_NAME}&ip_type=PRIVATE")
-unset DB_PASSWORD
+  --data-file=<(python3 -c 'import os, urllib.parse; print("postgres://broodly-app:{}@/broodly?instance={}&ip_type=PRIVATE".format(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""), urllib.parse.quote(os.environ["CONNECTION_NAME"], safe="")), end="")')
+unset DB_PASSWORD CONNECTION_NAME
 ```
 
-The user is `broodly-app`, the user Terraform provisions (`google_sql_user.app`), and its password lives in the `db-password` secret. If the password contains URL-reserved characters, percent-encode it first.
+The user is `broodly-app`, the user Terraform provisions (`google_sql_user.app`), and its password lives in the `db-password` secret. The command percent-encodes the password, so URL-reserved characters are safe, and it aborts if the secret cannot be read.
 
 The API's database layer must parse `instance` and `ip_type` and dial through the connector.
 
@@ -169,7 +171,7 @@ Removing `private_network` from an existing Cloud SQL instance is a ForceNew ope
    ```bash
    gcloud sql databases create broodly --instance=broodly-dev --project="broodly-491920"
    gcloud sql users create broodly-app --instance=broodly-dev --project="broodly-491920" \
-     --password="$(gcloud secrets versions access latest --secret=db-password --project=broodly-491920)"
+     --prompt-for-password   # paste the db-password secret value; never pass it as a --password argument
    gcloud sql databases list --instance=broodly-dev --project="broodly-491920"
    gcloud sql users list --instance=broodly-dev --project="broodly-491920"
    ```
