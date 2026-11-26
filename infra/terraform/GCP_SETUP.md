@@ -127,10 +127,16 @@ Store a connection string in Secret Manager that carries the instance connection
 CONNECTION_NAME=$(gcloud sql instances describe broodly-dev \
   --project="broodly-491920" \
   --format="value(connectionName)")
+DB_PASSWORD=$(gcloud secrets versions access latest \
+  --secret=db-password \
+  --project="broodly-491920")
 gcloud secrets versions add db-connection-string \
   --project="broodly-491920" \
-  --data-file=<(printf '%s' "postgres://broodly:PASSWORD@/broodly?instance=${CONNECTION_NAME}&ip_type=PRIVATE")
+  --data-file=<(printf '%s' "postgres://broodly-app:${DB_PASSWORD}@/broodly?instance=${CONNECTION_NAME}&ip_type=PRIVATE")
+unset DB_PASSWORD
 ```
+
+The user is `broodly-app`, the user Terraform provisions (`google_sql_user.app`), and its password lives in the `db-password` secret. If the password contains URL-reserved characters, percent-encode it first.
 
 The API's database layer must parse `instance` and `ip_type` and dial through the connector.
 
@@ -159,7 +165,15 @@ Removing `private_network` from an existing Cloud SQL instance is a ForceNew ope
 1. Stop and drain all writers (e.g., scale the Cloud Run API to zero and pause any jobs) so no writes land after the export; keep them stopped until the restore and `db-connection-string` update are complete. Then export the database using Cloud SQL export (e.g., to a GCS bucket) and verify the export
 2. Deliberately set `deletion_protection = false` and apply. This does not destroy the instance by itself.
 3. Revert the Terraform configuration (remove `private_network`) and apply. **This apply destroys the existing instance and creates the replacement**, so confirm the export first.
-4. Restore the export into the new instance and repoint `db-connection-string`, then deploy a new Cloud Run revision so running instances reload the secret before you scale the API back up
+4. Recreate the database and user on the new instance, then verify both exist. The replacement keeps the name `broodly-dev`, so `google_sql_database.broodly` and `google_sql_user.app` stay in Terraform state while the new instance has neither. Remove them from state (`terraform state rm`) and re-apply, or create them directly, for example:
+   ```bash
+   gcloud sql databases create broodly --instance=broodly-dev --project="broodly-491920"
+   gcloud sql users create broodly-app --instance=broodly-dev --project="broodly-491920" \
+     --password="$(gcloud secrets versions access latest --secret=db-password --project=broodly-491920)"
+   gcloud sql databases list --instance=broodly-dev --project="broodly-491920"
+   gcloud sql users list --instance=broodly-dev --project="broodly-491920"
+   ```
+5. Restore the export into the new instance and repoint `db-connection-string`, then deploy a new Cloud Run revision so running instances reload the secret before you scale the API back up
 
 > **Behavior change (issue #649):** `ipv4_enabled = false` removes the public IPv4 endpoint, and no `authorized_networks` allow-list remains. Any client outside the VPC (e.g., an operator laptop using a public IP) can no longer connect directly; they need a path into the VPC.
 
