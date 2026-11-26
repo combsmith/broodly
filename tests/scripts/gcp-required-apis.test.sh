@@ -157,8 +157,7 @@ pre_id = steps[pre].get("id")
 if not pre_id:
     sys.exit(1)
 gate_pat = f"steps\\.{pre_id}\\.outputs\\.usable\\s*==\\s*['\"]true['\"]"
-tf_steps = [s for s in steps[pre + 1:]
-            if "terraform" in (s.get("run", "") or "") or "setup-terraform" in (s.get("uses", "") or "")]
+tf_steps = steps[pre + 1:]  # every step after the preflight acts on Terraform/plan state
 sys.exit(0 if tf_steps and all(re.search(gate_pat, str(s.get("if", ""))) for s in tf_steps) else 1)
 PY
 }
