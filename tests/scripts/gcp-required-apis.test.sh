@@ -144,10 +144,10 @@ job_has_preflight_before_build "$CI_FILE" \
 # `terraform init`, and every Terraform step must be gated on its result.
 tf_workflow_has_preflight() {
   python3 - "$1" <<'PY'
-import sys, yaml
+import sys, yaml, re
 with open(sys.argv[1]) as fh:
-    wf = yaml.safe_load(fh)
-steps = wf["jobs"]["terraform"]["steps"]
+    wf = yaml.safe_load(fh) or {}
+steps = wf.get("jobs", {}).get("terraform", {}).get("steps", [])
 runs = [s.get("run", "") or "" for s in steps]
 pre = next((i for i, r in enumerate(runs) if "gcloud auth print-access-token" in r), None)
 init = next((i for i, r in enumerate(runs) if "terraform init" in r), None)
@@ -156,10 +156,10 @@ if pre is None or init is None or pre >= init:
 pre_id = steps[pre].get("id")
 if not pre_id:
     sys.exit(1)
-gate = f"steps.{pre_id}.outputs.usable == 'true'"
+gate_pat = f"steps\\.{pre_id}\\.outputs\\.usable\\s*==\\s*['\"]true['\"]"
 tf_steps = [s for s in steps[pre + 1:]
             if "terraform" in (s.get("run", "") or "") or "setup-terraform" in (s.get("uses", "") or "")]
-sys.exit(0 if tf_steps and all(gate in str(s.get("if", "")) for s in tf_steps) else 1)
+sys.exit(0 if tf_steps and all(re.search(gate_pat, str(s.get("if", ""))) for s in tf_steps) else 1)
 PY
 }
 
