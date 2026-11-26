@@ -6,8 +6,9 @@
 #   terraform:S6258 — Cloud SQL connection/lock/checkpoint logging and GCS
 #                     access logging must be enabled
 #   terraform:S6403 — Cloud SQL must reject unencrypted connections
-#   terraform:S6329 — Cloud SQL public IP is only reachable via the Cloud SQL
-#                     connector; authorized_networks must never open 0.0.0.0/0
+#   terraform:S6329 — Cloud SQL has no public IPv4 endpoint: it is reachable only
+#                     over private IP (Private Service Access), and Cloud Run
+#                     reaches it through Direct VPC egress (issue #649)
 #
 # Run: bash tests/scripts/sonar-infra-hardening.test.sh
 
@@ -17,6 +18,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SQL_MAIN="${REPO_ROOT}/infra/terraform/modules/cloud-sql/main.tf"
 SQL_VARS="${REPO_ROOT}/infra/terraform/modules/cloud-sql/variables.tf"
 STORAGE_MAIN="${REPO_ROOT}/infra/terraform/modules/storage/main.tf"
+NETWORK_MAIN="${REPO_ROOT}/infra/terraform/modules/network/main.tf"
+RUN_MAIN="${REPO_ROOT}/infra/terraform/modules/cloud-run/main.tf"
+DEV_MAIN="${REPO_ROOT}/infra/terraform/environments/dev/main.tf"
 
 fail=0
 pass_count=0
@@ -83,8 +87,44 @@ check "cloud-sql enforces encrypted connections (ssl_mode = ENCRYPTED_ONLY)" \
 check "cloud-sql enforces connector-only access (connector_enforcement = REQUIRED)" \
   grep -Eq '^[[:space:]]*connector_enforcement[[:space:]]*=[[:space:]]*"REQUIRED"' "$SQL_MAIN"
 
-check "cloud-sql authorized_networks validation rejects 0.0.0.0/0" \
-  awk '/^[[:space:]]*(#|\/\/)/ { next } /^[[:space:]]*validation[[:space:]]*\{/ { in_val = 1; next } in_val && /^[[:space:]]*(#|\/\/)/ { next } in_val && /^[[:space:]]*condition[[:space:]]*=/ { cond = $0; if (index(cond, "!contains") && index(cond, "0.0.0.0/0")) found = 1 } in_val && /\}/ { in_val = 0 } END { exit found ? 0 : 1 }' "$SQL_VARS"
+# active_grep <pattern> <file>
+# grep -E over uncommented lines only, so a commented-out setting never counts.
+active_grep() {
+  [[ -f "$2" ]] || return 1
+  grep -Ev '^[[:space:]]*(#|//)' "$2" | grep -E "$1" >/dev/null
+}
+
+check "cloud-sql disables the public IPv4 endpoint (ipv4_enabled = false)" \
+  active_grep '^[[:space:]]*ipv4_enabled[[:space:]]*=[[:space:]]*false' "$SQL_MAIN"
+
+check "cloud-sql attaches the instance to a private network" \
+  active_grep '^[[:space:]]*private_network[[:space:]]*=[[:space:]]*var\.private_network' "$SQL_MAIN"
+
+check "cloud-sql declares no authorized_networks (public-IP allow-list)" \
+  bash -c '! grep -Ev "^[[:space:]]*(#|//)" "$1" | grep -Eq "authorized_networks"' _ "$SQL_MAIN"
+
+check "cloud-sql module no longer exposes an authorized_networks variable" \
+  bash -c '! grep -Eq "^[[:space:]]*variable[[:space:]]+\"authorized_networks\"" "$1"' _ "$SQL_VARS"
+
+check "network module reserves a VPC_PEERING range for Private Service Access" \
+  active_grep '^[[:space:]]*purpose[[:space:]]*=[[:space:]]*"VPC_PEERING"' "$NETWORK_MAIN"
+
+check "network module creates the servicenetworking.googleapis.com connection" \
+  active_grep '^[[:space:]]*service[[:space:]]*=[[:space:]]*"servicenetworking\.googleapis\.com"' "$NETWORK_MAIN"
+
+for api in compute.googleapis.com servicenetworking.googleapis.com; do
+  check "dev environment enables ${api}" \
+    active_grep "^[[:space:]]*\"${api//./\\.}\",?[[:space:]]*\$" "$DEV_MAIN"
+done
+
+check "dev environment wires the private network into cloud_sql" \
+  active_grep '^[[:space:]]*private_network[[:space:]]*=[[:space:]]*module\.network\.' "$DEV_MAIN"
+
+check "dev environment wires Direct VPC egress into cloud_run" \
+  active_grep '^[[:space:]]*vpc_subnetwork[[:space:]]*=[[:space:]]*module\.network\.' "$DEV_MAIN"
+
+check "cloud-run supports Direct VPC egress to private ranges" \
+  active_grep '^[[:space:]]*egress[[:space:]]*=[[:space:]]*"PRIVATE_RANGES_ONLY"' "$RUN_MAIN"
 
 check "storage media bucket has an access logging block" \
   grep -Eq '^[[:space:]]*log_bucket[[:space:]]*=' "$STORAGE_MAIN"

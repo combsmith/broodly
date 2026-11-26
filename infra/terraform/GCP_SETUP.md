@@ -21,6 +21,7 @@ gcloud services enable \
   iamcredentials.googleapis.com \
   sts.googleapis.com \
   artifactregistry.googleapis.com \
+  firebase.googleapis.com \
   --project="broodly-491920"
 ```
 
@@ -116,14 +117,68 @@ These Firebase settings must be configured manually in the [Firebase Console](ht
 
 ## 5. Cloud SQL (Database)
 
-The database is provisioned via Terraform (`infra/terraform/modules/cloud-sql/`), but the connection string must be stored in Secret Manager:
+The database is provisioned via Terraform (`infra/terraform/modules/cloud-sql/`). It has **no public IP**: it gets a private IP through Private Service Access on the VPC from `infra/terraform/modules/network/`. Cloud Run reaches it through Direct VPC egress. You can't connect from outside the VPC, including from a laptop with the Cloud SQL Auth Proxy, unless you have a path into the VPC.
+
+The instance sets `connector_enforcement = "REQUIRED"`, so plain TCP clients are rejected even over the private IP. The API must connect through the Cloud SQL Go Connector (`cloud.google.com/go/cloudsqlconn`) with `cloudsqlconn.WithPrivateIP()`, using the instance connection name. Direct VPC egress gives network reachability; the connector supplies authorization.
+
+Store a connection string in Secret Manager that carries the instance connection name instead of a host:
 
 ```bash
-# After Terraform creates the Cloud SQL instance:
+CONNECTION_NAME=$(gcloud sql instances describe broodly-dev \
+  --project="broodly-491920" \
+  --format="value(connectionName)") || { echo 'Failed to read instance connection name' >&2; exit 1; }
+: "${CONNECTION_NAME:?instance connection name is empty}"
+DB_PASSWORD=$(gcloud secrets versions access latest \
+  --secret=db-password \
+  --project="broodly-491920") || { echo 'Failed to read db-password' >&2; exit 1; }
+: "${DB_PASSWORD:?db-password is empty}"
 gcloud secrets versions add db-connection-string \
   --project="broodly-491920" \
-  --data-file=- <<< "postgres://broodly:PASSWORD@/broodly?host=/cloudsql/broodly-491920:us-central1:broodly-db-dev"
+  --data-file=<(DB_PASSWORD="$DB_PASSWORD" CONNECTION_NAME="$CONNECTION_NAME" python3 -c 'import os, urllib.parse; print("postgres://broodly-app:{}@/broodly?instance={}&ip_type=PRIVATE".format(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""), urllib.parse.quote(os.environ["CONNECTION_NAME"], safe="")), end="")')
+unset DB_PASSWORD CONNECTION_NAME
 ```
+
+The user is `broodly-app`, the user Terraform provisions (`google_sql_user.app`), and its password lives in the `db-password` secret. The command percent-encodes the password, so URL-reserved characters are safe, and it aborts if the secret cannot be read.
+
+The API's database layer must parse `instance` and `ip_type` and dial through the connector.
+
+Cloud Run resolves environment-variable secrets only when an instance starts, so a new secret version does not reach running instances. After updating `db-connection-string`, deploy a new revision (or otherwise replace the running instances) so they pick up the new value:
+
+```bash
+gcloud run services update broodly-api-dev \
+  --project="broodly-491920" \
+  --region=us-central1 \
+  --update-env-vars="SECRET_ROTATED_AT=$(date +%s)"
+```
+
+### 5.1 Rollback: Keeping the Private Network
+
+**⚠️ IMPORTANT: Do NOT roll back by reverting the Cloud SQL Terraform changes wholesale.**
+
+Removing `private_network` from an existing Cloud SQL instance is a ForceNew operation, which means `terraform apply` will destroy and recreate the instance. Since the dev environment sets `deletion_protection = false`, the database will be **permanently deleted**.
+
+**To safely roll back while keeping the database:**
+
+1. Keep `private_network = module.network.private_services_network_id` in `infra/terraform/environments/dev/main.tf` and retain the `private_network = var.private_network` wiring in `infra/terraform/modules/cloud-sql/`
+2. Retain the VPC (`infra/terraform/modules/network/`) and the Private Service Access connection
+3. Adjust only other settings as needed (e.g., Cloud Run egress, security groups)
+
+**Full revert is a migration, not a rollback.** Removing `private_network` forces instance replacement. With `deletion_protection = true` (the setting that protects the data), the locked Google provider (5.45.2) refuses to destroy the instance, so `terraform apply` fails by design. Reverting therefore cannot be completed by Terraform alone. To migrate off the private network:
+1. Stop and drain all writers (e.g., scale the Cloud Run API to zero and pause any jobs) so no writes land after the export; keep them stopped until the restore and `db-connection-string` update are complete. Then export the database using Cloud SQL export (e.g., to a GCS bucket) and verify the export
+2. Deliberately set `deletion_protection = false` and apply. This does not destroy the instance by itself.
+3. Revert the Terraform configuration (remove `private_network`) and apply. **This apply destroys the existing instance and creates the replacement**, so confirm the export first.
+4. Recreate the database and user on the new instance, then verify both exist. The replacement keeps the name `broodly-dev`, so `google_sql_database.broodly` and `google_sql_user.app` stay in Terraform state while the new instance has neither. Remove them from state (`terraform state rm`) and re-apply, or create them directly, for example:
+   ```bash
+   gcloud sql databases create broodly --instance=broodly-dev --project="broodly-491920"
+   gcloud sql users create broodly-app --instance=broodly-dev --project="broodly-491920"
+   gcloud sql users set-password broodly-app --instance=broodly-dev --project="broodly-491920" \
+     --prompt-for-password   # paste the db-password secret value; never pass it as a --password argument
+   gcloud sql databases list --instance=broodly-dev --project="broodly-491920"
+   gcloud sql users list --instance=broodly-dev --project="broodly-491920"
+   ```
+5. Restore the export into the new instance and repoint `db-connection-string`, then deploy a new Cloud Run revision so running instances reload the secret before you scale the API back up
+
+> **Behavior change (issue #649):** `ipv4_enabled = false` removes the public IPv4 endpoint, and no `authorized_networks` allow-list remains. Any client outside the VPC (e.g., an operator laptop using a public IP) can no longer connect directly; they need a path into the VPC.
 
 ## Reference
 

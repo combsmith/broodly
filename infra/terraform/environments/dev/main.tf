@@ -28,6 +28,8 @@ provider "google-beta" {
 # impersonate broodly-ci and push the API image to Artifact Registry.
 # Without iamcredentials.googleapis.com, google-github-actions/auth succeeds but
 # docker push fails with "Unauthenticated request" (issues #607, #611).
+# Also includes firebase.googleapis.com, required by the Firebase module
+# (google_firebase_project) rather than the CI image-push path.
 # Guarded by tests/scripts/gcp-required-apis.test.sh.
 # -----------------------------------------------------------------------------
 
@@ -37,6 +39,7 @@ resource "google_project_service" "ci_required" {
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
     "artifactregistry.googleapis.com",
+    "firebase.googleapis.com",
   ])
 
   project = var.project_id
@@ -44,6 +47,20 @@ resource "google_project_service" "ci_required" {
 
   # Leave APIs enabled if this resource is removed; disabling them would break
   # CI image pushes and any other workload sharing the project.
+  disable_on_destroy = false
+}
+
+# Private networking APIs: Cloud SQL has no public IP and uses Private Service
+# Access (issue #649, terraform:S6329).
+resource "google_project_service" "network_required" {
+  for_each = toset([
+    "compute.googleapis.com",
+    "servicenetworking.googleapis.com",
+  ])
+
+  project = var.project_id
+  service = each.value
+
   disable_on_destroy = false
 }
 
@@ -168,6 +185,16 @@ resource "google_secret_manager_secret_iam_member" "worker_db_connection" {
 # Modules
 # -----------------------------------------------------------------------------
 
+module "network" {
+  source = "../../modules/network"
+
+  project_id  = var.project_id
+  region      = var.region
+  environment = var.environment
+
+  depends_on = [google_project_service.network_required]
+}
+
 module "cloud_sql" {
   source = "../../modules/cloud-sql"
 
@@ -177,6 +204,7 @@ module "cloud_sql" {
   tier                  = "db-f1-micro"
   deletion_protection   = false
   db_password_secret_id = google_secret_manager_secret.db_password.secret_id
+  private_network       = module.network.private_services_network_id
 }
 
 module "storage" {
@@ -202,6 +230,8 @@ module "firebase" {
   project_id   = var.project_id
   environment  = var.environment
   display_name = "Broodly Web"
+
+  depends_on = [google_project_service.ci_required]
 }
 
 module "cloud_run" {
@@ -217,4 +247,6 @@ module "cloud_run" {
   min_instances            = 0
   max_instances            = 5
   allow_unauthenticated    = true # API validates Firebase tokens internally
+  vpc_network              = module.network.network_id
+  vpc_subnetwork           = module.network.serverless_subnetwork_id
 }

@@ -36,17 +36,13 @@ variable "db_password_secret_id" {
   type        = string
 }
 
-variable "authorized_networks" {
-  description = "List of authorized networks for database access"
-  type = list(object({
-    name  = string
-    value = string
-  }))
-  default = []
+variable "private_network" {
+  description = "VPC network ID with Private Service Access established. The instance gets only a private IP on this network (no public IPv4)."
+  type        = string
 
   validation {
-    condition     = alltrue([for n in var.authorized_networks : !contains(["0.0.0.0/0", "::/0"], n.value)])
-    error_message = "authorized_networks must not include 0.0.0.0/0 or ::/0 (open to the internet)."
+    condition     = length(trimspace(var.private_network)) > 0
+    error_message = "private_network must be a non-empty VPC network ID."
   }
 }
 

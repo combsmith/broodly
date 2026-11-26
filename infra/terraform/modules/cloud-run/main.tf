@@ -40,6 +40,20 @@ resource "google_cloud_run_v2_service" "api" {
       }
     }
 
+    # Direct VPC egress so the service reaches the private-IP-only Cloud SQL
+    # instance (issue #649). Only RFC 1918 traffic uses the VPC; public egress
+    # (Firebase, Google APIs) is unchanged.
+    dynamic "vpc_access" {
+      for_each = var.vpc_subnetwork == null ? [] : [1]
+      content {
+        egress = "PRIVATE_RANGES_ONLY"
+        network_interfaces {
+          network    = var.vpc_network
+          subnetwork = var.vpc_subnetwork
+        }
+      }
+    }
+
     scaling {
       min_instance_count = var.min_instances
       max_instance_count = var.max_instances
@@ -49,6 +63,15 @@ resource "google_cloud_run_v2_service" "api" {
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
+  }
+
+  # Cross-variable check (variable validation cannot reference other
+  # variables before Terraform 1.9).
+  lifecycle {
+    precondition {
+      condition     = (var.vpc_network == null) == (var.vpc_subnetwork == null)
+      error_message = "vpc_network and vpc_subnetwork must be set together (both null or both non-null)."
+    }
   }
 }
 

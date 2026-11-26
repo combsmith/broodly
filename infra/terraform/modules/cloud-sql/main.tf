@@ -9,8 +9,8 @@ resource "google_sql_database_instance" "main" {
     tier              = var.tier
     availability_type = var.availability_type
 
-    # Public-IP connections must go through the Cloud SQL connector (IAM
-    # authorization + TLS); direct client connections are rejected.
+    # Connections must go through the Cloud SQL connector (IAM authorization +
+    # TLS); direct client connections are rejected.
     connector_enforcement = "REQUIRED"
 
     database_flags {
@@ -52,27 +52,21 @@ resource "google_sql_database_instance" "main" {
     }
 
     ip_configuration {
-      # Public IP is required: Cloud Run reaches the instance through the
-      # Cloud SQL connector (/cloudsql socket), and there is no VPC/private
-      # service access in this project. connector_enforcement = "REQUIRED"
-      # (see settings above) rejects any connection that bypasses the connector,
-      # so even a caller-supplied authorized_networks range cannot open direct
-      # access; connector traffic is IAM-authorized and TLS-encrypted.
-      # The public IPv4 endpoint still exists, so terraform:S6329 stays an
-      # accepted-risk finding to be tracked via the exception process (not
-      # suppressed as a false positive) until private IP + VPC egress lands.
-      ipv4_enabled = true
+      # No public IPv4 endpoint (terraform:S6329, issue #649). The instance is
+      # reachable only over private IP via Private Service Access on
+      # var.private_network; Cloud Run reaches it through Direct VPC egress.
+      #
+      # ROLLBACK WARNING: do NOT roll back by reverting this change wholesale.
+      # Removing private_network from an existing instance is ForceNew, so
+      # `terraform apply` would destroy and recreate the instance (dev sets
+      # deletion_protection = false, so the data would be lost). To recover,
+      # keep private_network set and retain the VPC and the Private Service
+      # Access connection; adjust other settings (e.g. Cloud Run egress) instead.
+      ipv4_enabled    = false
+      private_network = var.private_network
 
       # Reject unencrypted connections; the Cloud SQL connector always uses TLS.
       ssl_mode = "ENCRYPTED_ONLY"
-
-      dynamic "authorized_networks" {
-        for_each = var.authorized_networks
-        content {
-          name  = authorized_networks.value.name
-          value = authorized_networks.value.value
-        }
-      }
     }
 
     insights_config {

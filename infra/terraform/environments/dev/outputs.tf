@@ -5,7 +5,7 @@ output "cloud_sql_connection_name" {
 }
 
 output "cloud_sql_ip_address" {
-  description = "Cloud SQL instance IP address"
+  description = "Cloud SQL instance private IP address"
   value       = module.cloud_sql.ip_address
 }
 
