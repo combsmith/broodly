@@ -87,6 +87,7 @@ jobs:
           msg="Could not mint an access token for the CI service account. Enable iamcredentials.googleapis.com (and the other APIs in google_project_service.ci_required) with 'gcloud services enable' — see infra/terraform/GCP_SETUP.md step 1.0."
           if [ "${EVENT_NAME}" = "pull_request" ]; then
             echo "::warning title=GCP credentials unusable::Skipping Terraform. ${msg}"
+            echo "### :warning: Terraform plan SKIPPED — GCP credentials unusable. This PR has NOT been planned; do not merge infra changes until it is. ${msg}" >> "${GITHUB_STEP_SUMMARY}"
           else
             echo "::error title=GCP credentials unusable::${msg}"
             exit 1
